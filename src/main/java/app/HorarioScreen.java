@@ -457,8 +457,10 @@ public class HorarioScreen {
         btnOk.setOnAction(e -> {
             dialogRef.close();
             root.setEffect(null);
-            recargarOcupadosYRefrescar();
+            // En vez de solo recargar la tabla, mostramos Mis Citas:
+            CitasAgendadasScreen.show(hostContainer, idPaciente);  // idPaciente = matrícula guardada en sesión
         });
+
 
         VBox card = new VBox(22, icono, titulo, sub, btnOk);
         card.setPadding(new Insets(30));

@@ -19,6 +19,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import app.CitasAgendadasScreen;
+import app.Sesion;
 
 import org.example.OracleWalletConnector;
 
@@ -70,6 +72,11 @@ public class MenuScreen {
         btnCitas.setGraphicTextGap(8);
         btnCitas.setStyle(estiloBoton);
         btnCitas.setMinHeight(40);
+        btnCitas.setOnAction(e -> {
+            // usa la matrícula guardada en sesión
+            String matricula = Sesion.getMatricula();
+            CitasAgendadasScreen.show(centerContainer, matricula);
+        });
 
         Button btnEmergencia = new Button("EMERGENCIA");
         btnEmergencia.setStyle(estiloEmergencia);
