@@ -81,7 +81,7 @@ public class MenuScreen {
         centerButtons.setAlignment(Pos.CENTER);
         centerButtons.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(centerButtons, Priority.ALWAYS);
-        
+
 // 1) Leemos la matrícula de la sesión y la normalizamos
         String m = Sesion.getMatricula();
         String nombrePaciente = obtenerNombrePacientePorMatricula(m);
