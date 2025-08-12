@@ -183,17 +183,23 @@ public class Main extends Application {
                 // Paso 2: validar las credenciales si el correo existe
                 if (validarCredenciales(correo, contrasena)) {
 
-                    // Suponiendo que txtCorreo contiene el correo ingresado
-                    String correoRecuperacion = emailField.getText().trim();
-                    System.out.println(correoRecuperacion);
+                    UsuarioInfo info = obtenerUsuarioInfo(correo);
+                    if (info == null) {
+                        showAlert("Error", "No se encontró información para este usuario.");
+                        return;
+                    }
 
-                    // Extraer la matrícula (todo antes de la @)
-                    String matricula = correoRecuperacion.split("@")[0];
+                    Sesion.setNombreUsuario(info.nombre);
 
-                    // Guardar en la sesión global
-                    Sesion.setMatricula(matricula);  // matricula es el valor que recuperaste del login o base de dato
-                    System.out.println(matricula);
-                    pantallaDeCarga();
+                    if ("medico".equalsIgnoreCase(info.rol) || (info.idMedico != null && !info.idMedico.isBlank())) {
+                        // DOCTOR
+                        Sesion.setDoctorId(info.idMedico);
+                        pantallaDeCarga(this::mostrarAgendaDoctor);  // ← usa la misma pantalla de carga
+                    } else {
+                        // PACIENTE
+                        if (info.matricula != null) Sesion.setMatricula(info.matricula);
+                        pantallaDeCarga(this::showNextScreen);       // ← misma pantalla de carga
+                    }
                 } else {
                     showAlert("Error", "Contraseña incorrecta.");
                 }
@@ -259,121 +265,6 @@ public class Main extends Application {
 
         }
     }
-
-    private boolean insertarNuevoUsuario(String correo, String contrasena) {
-        String sql = "INSERT INTO Usuario (CORREO, CONTRASENA, ROL) VALUES (?, ?, ?)";
-        try (Connection conn = OracleWalletConnector.getConnection();
-             java.sql.PreparedStatement stmt = conn.prepareStatement(sql)) {
-            System.out.println(sql);
-            stmt.setString(1, correo);
-            System.out.println("BD correo = " + correo);
-            stmt.setString(2, contrasena);
-            stmt.setString(3, "paciente"); // asignar rol paciente por defecto
-
-            int filas = stmt.executeUpdate();
-            return filas > 0;
-
-        } catch (SQLException e) {
-            if (e.getErrorCode() == 1) { // ORA-00001: violación de clave única
-                showAlert("Usuario duplicado", "Ya existe una cuenta con esa matrícula.");
-            } else {
-                showAlert("Error de BD", "No se pudo insertar el usuario: " + e.getMessage());
-            }
-            return false;
-        }
-    }
-
-
-    private boolean insertarNuevoUsuarioConPaciente(
-            String correo,
-            String password,
-            String nombres,
-            String apellidos,
-            LocalDate fecha,
-            String genero,
-            String curp,
-            String telefono,
-            String tipoUsuario
-    ) {
-        Connection conn = null;
-
-        try {
-            conn = OracleWalletConnector.getConnection();
-            conn.setAutoCommit(false); // Iniciar transacción
-
-            // 1. Verificar si el usuario ya existe
-            String checkUsuario = "SELECT 1 FROM Usuario WHERE correo = ?";
-            try (PreparedStatement checkStmt = conn.prepareStatement(checkUsuario)) {
-                checkStmt.setString(1, correo);
-                try (ResultSet rs = checkStmt.executeQuery()) {
-                    if (!rs.next()) {
-                        // No existe, insertar nuevo usuario
-                        String insertUsuario = "INSERT INTO Usuario (correo, contrasena, rol, tipo_usuario) VALUES (?, ?, ?, ?)";
-                        try (PreparedStatement insertStmt = conn.prepareStatement(insertUsuario)) {
-                            insertStmt.setString(1, correo);
-                            insertStmt.setString(2, password);
-                            insertStmt.setString(3, "paciente");
-                            insertStmt.setString(4, tipoUsuario);
-                            insertStmt.executeUpdate();
-                        }
-                    }
-                }
-            }
-
-            // 2. Verificar si el paciente ya existe
-            String checkPaciente = "SELECT 1 FROM Paciente WHERE correo = ?";
-            try (PreparedStatement checkStmt = conn.prepareStatement(checkPaciente)) {
-                checkStmt.setString(1, correo);
-                try (ResultSet rs = checkStmt.executeQuery()) {
-                    if (!rs.next()) {
-                        // No existe, insertar en Paciente
-                        String insertPaciente = "INSERT INTO Paciente (correo, nombre, apellidos, fecha_nacimiento, sexo, curp, telefono, tipo_usuario) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-                        try (PreparedStatement stmtPaciente = conn.prepareStatement(insertPaciente)) {
-                            stmtPaciente.setString(1, correo);
-                            stmtPaciente.setString(2, nombres);
-                            stmtPaciente.setString(3, apellidos);
-                            stmtPaciente.setDate(4, java.sql.Date.valueOf(fecha));
-                            stmtPaciente.setString(5, genero);
-                            stmtPaciente.setString(6, curp);
-                            stmtPaciente.setString(7, telefono);
-                            stmtPaciente.setString(8, tipoUsuario);
-                            stmtPaciente.executeUpdate();
-                        }
-                    }
-                }
-            }
-
-            conn.commit(); // todo exitoso
-            return true;
-
-        } catch (SQLException e) {
-            if (conn != null) {
-                try {
-                    conn.rollback();
-                } catch (SQLException ex) {
-                    ex.printStackTrace();
-                }
-            }
-
-            if (e.getErrorCode() == 1) {
-                showAlert("Error", "Ya existe un usuario o paciente con ese correo.");
-            } else {
-                showAlert("Error de BD", "No se pudo registrar el usuario y paciente: " + e.getMessage());
-            }
-            return false;
-
-        } finally {
-            if (conn != null) {
-                try {
-                    conn.setAutoCommit(true);
-                    conn.close();
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-    }
-
 
     private void updateWelcome() {
         welcomeContainer.getChildren().clear();
@@ -959,19 +850,17 @@ public class Main extends Application {
         }
     }
 
-    private void pantallaDeCarga() {
+    private void pantallaDeCarga(Runnable despues) {
         Stage stage = new Stage();
 
-        // Mensaje de bienvenida
         Label mensaje = new Label("¡Bienvenido al sistema!\nEn un momento te redirigiremos");
         mensaje.setFont(Font.font("System", FontWeight.BOLD, 20));
         mensaje.setTextAlignment(TextAlignment.CENTER);
-        mensaje.setStyle("-fx-text-fill: #0C3C78;"); // Azul oscuro
+        mensaje.setStyle("-fx-text-fill: #0C3C78;");
 
-        // Barra de progreso personalizada
         ProgressBar progressBar = new ProgressBar();
         progressBar.setPrefWidth(250);
-        progressBar.setStyle("-fx-accent: #0C3C78;"); // Azul oscuro
+        progressBar.setStyle("-fx-accent: #0C3C78;");
 
         VBox contenedorInterno = new VBox(20, mensaje, progressBar);
         contenedorInterno.setPadding(new Insets(40));
@@ -985,20 +874,24 @@ public class Main extends Application {
         );
 
         StackPane root = new StackPane(contenedorInterno);
-        root.setStyle("-fx-background-color: #FBFCFA;"); // Fondo blanco grisáceo
+        root.setStyle("-fx-background-color: #FBFCFA;");
 
         Scene escenaTemporal = new Scene(root, 800, 500);
         stage.setScene(escenaTemporal);
         stage.setTitle("Cargando...");
         stage.show();
 
-        // Espera antes de continuar
         PauseTransition delay = new PauseTransition(Duration.seconds(3));
         delay.setOnFinished(event -> {
             stage.close();
-            showNextScreen(); // Lógica tuya de navegación
+            if (despues != null) despues.run();
         });
         delay.play();
+    }
+
+    //Wrapper para el flujo paciente existente
+    private void pantallaDeCarga() {
+        pantallaDeCarga(this::showNextScreen);
     }
 
     private boolean actualizarDatosPersonales(String correo, String nombres, String apellidos, LocalDate fecha, String genero, String curp, String telefono, String tipoUsuario){
@@ -1161,6 +1054,54 @@ public class Main extends Application {
         } finally {
             if (conn != null) try { conn.setAutoCommit(true); conn.close(); } catch (SQLException ignore) {}
         }
+    }
+
+    private static class UsuarioInfo {
+        String rol;             // "paciente" | "medico"
+        String correo;
+        String idMedico;        // de ADMIN.MEDICOS
+        Long   idPaciente;      // de ADMIN.PACIENTE
+        String matricula;       // PACIENTE.MATRICULA
+        String nombre;          // nombre completo (paciente o médico)
+    }
+
+    private UsuarioInfo obtenerUsuarioInfo(String correo) {
+        final String sql =
+                "SELECT u.rol, u.correo, " +
+                        "       p.id_paciente, p.matricula, (p.nombre || ' ' || p.apellidos) AS nom_p, " +
+                        "       m.id_medico,               (m.nombre || ' ' || m.apellidos) AS nom_m " +
+                        "FROM   ADMIN.USUARIO u " +
+                        "LEFT JOIN ADMIN.PACIENTE p ON p.correo = u.correo " +
+                        "LEFT JOIN ADMIN.MEDICOS  m ON m.correo = u.correo " +
+                        "WHERE  u.correo = ?";
+
+        try (Connection con = OracleWalletConnector.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, correo);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    UsuarioInfo i = new UsuarioInfo();
+                    i.rol        = rs.getString("rol");
+                    i.correo     = rs.getString("correo");
+                    i.idPaciente = (rs.getObject("id_paciente") == null) ? null : rs.getLong("id_paciente");
+                    i.matricula  = rs.getString("matricula");
+                    i.idMedico   = rs.getString("id_medico");
+                    String np    = rs.getString("nom_p");
+                    String nm    = rs.getString("nom_m");
+                    i.nombre     = (nm != null && !nm.isBlank()) ? nm : np;
+                    return i;
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            showAlert("Error de BD", "No se pudo leer la información del usuario: " + e.getMessage());
+        }
+        return null;
+    }
+
+    private void mostrarAgendaDoctor() {
+        Stage currentStage = (Stage) formContainer.getScene().getWindow();
+        new app.DoctorAgendaScree().show(currentStage, Sesion.getDoctorId(), Sesion.getNombreUsuario());
     }
 
 
