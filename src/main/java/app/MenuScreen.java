@@ -15,6 +15,12 @@ import javafx.scene.shape.Circle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
+import org.example.OracleWalletConnector;
 
 import java.util.List;
 
@@ -75,12 +81,25 @@ public class MenuScreen {
         centerButtons.setAlignment(Pos.CENTER);
         centerButtons.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(centerButtons, Priority.ALWAYS);
+        
+// 1) Leemos la matrícula de la sesión y la normalizamos
+        String m = Sesion.getMatricula();
+        String nombrePaciente = obtenerNombrePacientePorMatricula(m);
 
-        Label lblUsuario = new Label("Nombre usuario", createIcon("User.png", 24, 24));
+// 2) Fallback claro si no se encuentra
+        if (nombrePaciente == null || nombrePaciente.isBlank()) {
+            // Opcional: imprime para depurar
+            System.out.println("⚠ No se encontró paciente para matrícula: " + m);
+            nombrePaciente = "Paciente";
+        }
+
+        Label lblUsuario = new Label(nombrePaciente, createIcon("User.png", 24, 24));
         lblUsuario.setFont(Font.font("System", 14));
         lblUsuario.setTextFill(Color.web("#1F355E"));
         lblUsuario.setContentDisplay(ContentDisplay.LEFT);
         lblUsuario.setGraphicTextGap(8);
+
+
 
         Button btnSalir = new Button("", createIcon("Close.png", 24, 24));
         btnSalir.setStyle("-fx-background-color: #1F355E;");
@@ -182,28 +201,6 @@ public class MenuScreen {
         stage.setScene(scene);
         stage.setMaximized(true);
         stage.show();
-    }
-
-    private Node crearGridEspecialidades(String especialidad) {
-        List<Doctor> doctores = DoctorData.getDoctoresPorEspecialidad(especialidad);
-        GridPane grid = new GridPane();
-        grid.setHgap(40);
-        grid.setVgap(20);
-        grid.setPadding(new Insets(40));
-        int col = 0;
-        int row = 0;
-
-        for (Doctor doctor : doctores) {
-            VBox card = crearDoctorCard(doctor);
-            grid.add(card, col, row);
-            col++;
-            if (col == 3) {
-                col = 0;
-                row++;
-            }
-        }
-
-        return grid;
     }
 
     private VBox crearDoctorCard(Doctor doctor) {
@@ -520,6 +517,39 @@ public class MenuScreen {
 
     public void mostrarHorarioDoctor(Doctor doctor, String especialidad) {
         HorarioScreen.mostrarHorario(doctor, especialidad, centerContainer, Sesion.getMatricula());
+    }
+
+    private String obtenerNombrePacientePorMatricula(String matriculaSesion) {
+        if (matriculaSesion == null || matriculaSesion.isBlank()) return null;
+
+        // Normalizamos para comparar sin problemas de mayúsculas/espacios
+        String mat = matriculaSesion.trim().replaceAll("\\s+", "").toUpperCase();
+        String correoInstitucional = mat.toLowerCase() + "@utez.edu.mx";
+
+        final String sql =
+                "SELECT NOMBRE, APELLIDOS " +
+                        "FROM ADMIN.PACIENTE " +
+                        "WHERE UPPER(MATRICULA) = ? OR LOWER(CORREO) = ?";
+
+        try (Connection conn = OracleWalletConnector.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, mat);
+            ps.setString(2, correoInstitucional);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    String nombre = rs.getString("NOMBRE");
+                    String apellidos = rs.getString("APELLIDOS");
+                    String completo = ((nombre == null ? "" : nombre.trim()) + " " +
+                            (apellidos == null ? "" : apellidos.trim())).trim();
+                    return completo.isEmpty() ? null : completo;
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace(); // para ver el problema si la consulta falla
+        }
+        return null;
     }
 
 }

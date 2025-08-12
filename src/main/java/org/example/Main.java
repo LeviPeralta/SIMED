@@ -35,6 +35,8 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import java.sql.SQLException;
 
+import static java.awt.SystemColor.window;
+
 
 public class Main extends Application {
 
@@ -240,21 +242,16 @@ public class Main extends Application {
 
                 String correo = buildCorreo(matriculaNorm);
 
-                // 2) ¿Ya existe el usuario (correo) ?
+                // 2) ¿Ya existe el correo?
                 if (correoYaRegistrado(correo)) {
                     showAlert("Usuario ya registrado", "Ya existe una cuenta con esa matrícula (" + correo + ").");
                     return;
                 }
 
-                // 3) Crea el usuario (tabla USUARIO) – solo una vez aquí
-                if (!insertarNuevoUsuario(correo, password)) { // este método ya lo tienes
-                    showAlert("Error", "No se pudo registrar el usuario.");
-                    return;
-                }
-
-                // 4) Abre el formulario de datos personales y registra PACIENTE (ID_PACIENTE = matrícula)
+                // 3) NO insertamos nada aún. Abrimos el formulario de datos personales.
                 showPatientForm(correo, password, matriculaNorm);
             });
+
 
 
 
@@ -842,16 +839,21 @@ public class Main extends Application {
                 return;
             }
 
-            // Inserta SOLO en PACIENTE con la matrícula como ID_PACIENTE
-            if (insertarPacienteSiNoExiste(matriculaNorm, nombres, apellidos, fecha, genero, curp, telefono, correo, tipoUsuario)) {
+            // Transacción: primero PACIENTE (con MATRICULA), luego USUARIO enlazado
+            boolean ok = crearPacienteYUsuarioTransaccional(
+                    matriculaNorm, correo, password,
+                    nombres, apellidos, fecha, genero,
+                    curp, telefono, tipoUsuario
+            );
+
+            if (ok) {
                 window.close();
                 Stage currentStage = (Stage) formContainer.getScene().getWindow();
                 new MenuScreen().show(currentStage);
             } else {
-                showAlert("Error", "No se pudo registrar al paciente.");
+                showAlert("Error", "No se pudo completar el registro.");
             }
         });
-
 
         formGrid.add(sectionTitle, 0, 0, 2, 1); // Título ocupa 2 columnas
 
@@ -1083,7 +1085,83 @@ public class Main extends Application {
         }
     }
 
+    private boolean crearPacienteYUsuarioTransaccional(
+            String matriculaNorm, String correo, String password,
+            String nombres, String apellidos, LocalDate fecha,
+            String genero, String curp, String telefono, String tipoUsuario
+    ) {
+        String insertPaciente =
+                "INSERT INTO ADMIN.PACIENTE " +
+                        "(ID_PACIENTE, NOMBRE, APELLIDOS, SEXO, FECHA_NACIMIENTO, CORREO, TELEFONO, DIRECCION, CURP, TIPO_USUARIO, MATRICULA) " +
+                        "VALUES (ADMIN.PACIENTE_SEQ.NEXTVAL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+        String selectPacienteId = "SELECT ADMIN.PACIENTE_SEQ.CURRVAL AS ID_PACIENTE FROM dual";
+
+        String correoInstitucional = matriculaNorm + "@utez.edu.mx";
+        System.out.println(correoInstitucional);
+
+        String insertUsuario =
+                "INSERT INTO ADMIN.USUARIO " +
+                        "(ID_USUARIO, CORREO, CONTRASENA, ROL, ID_REFERENCIA, TIPO_USUARIO) " +
+                        "VALUES (ADMIN.USUARIO_SEQ.NEXTVAL, ?, ?, ?, ?, ?)";
+
+
+        Connection conn = null;
+
+        try {
+            conn = OracleWalletConnector.getConnection();
+            conn.setAutoCommit(false);
+
+            // 1) Insert PACIENTE
+            try (PreparedStatement psP = conn.prepareStatement(insertPaciente)) {
+                psP.setString(1, nombres);
+                psP.setString(2, apellidos);
+                psP.setString(3, genero);
+                if (fecha != null) psP.setDate(4, java.sql.Date.valueOf(fecha));
+                else psP.setNull(4, Types.DATE);
+                psP.setString(5, correo);
+                psP.setString(6, telefono);
+                psP.setString(7, null);       // DIRECCION (si aún no la manejas)
+                psP.setString(8, curp);
+                psP.setString(9, tipoUsuario);
+                psP.setString(10, matriculaNorm); // <-- MATRÍCULA AQUÍ
+                psP.executeUpdate();
+            }
+
+            // 2) Obtener ID_PACIENTE recién insertado
+            long idPaciente;
+            try (PreparedStatement psId = conn.prepareStatement(selectPacienteId);
+                 ResultSet rs = psId.executeQuery()) {
+                if (!rs.next()) throw new SQLException("No se pudo obtener ID_PACIENTE.");
+                idPaciente = rs.getLong("ID_PACIENTE");
+            }
+
+            // 3) Insert USUARIO enlazado
+            try (PreparedStatement psU = conn.prepareStatement(insertUsuario)) {
+                psU.setString(1, correoInstitucional);
+                psU.setString(2, password);
+                psU.setString(3, "paciente");
+                psU.setLong(4, idPaciente);      // ID_REFERENCIA -> PACIENTE
+                psU.setString(5, tipoUsuario);
+                psU.executeUpdate();
+            }
+
+            conn.commit();
+            return true;
+
+        } catch (SQLException e) {
+            if (conn != null) try { conn.rollback(); } catch (SQLException ignore) {}
+            // Mensajes amigables por errores típicos
+            if (e.getErrorCode() == 1) { // ORA-00001 unique constraint
+                showAlert("Duplicado", "El correo o la matrícula ya están registrados.");
+            } else {
+                showAlert("Error de BD", e.getMessage());
+            }
+            return false;
+        } finally {
+            if (conn != null) try { conn.setAutoCommit(true); conn.close(); } catch (SQLException ignore) {}
+        }
+    }
+
+
 }
-
-
-
