@@ -22,90 +22,78 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-public class AdminRecepcionistaScreen {
+public class MedicosEspecialidadesScreen {
 
-    // contenedor central para overlays (mis citas, etc.)
+    // Contenedor donde podremos mostrar overlays (p.ej. "Mis citas")
     private final StackPane centerContainer = new StackPane();
 
-    // Carpeta base dentro de src/main/resources
     private static final String BASE_ASSETS = "/images/mainPage/";
 
+    // ---------- Helpers de iconos ----------
     private static ImageView safeIcon(String fileName, double w, double h) {
         String path = BASE_ASSETS + fileName;
-        var url = AdminRecepcionistaScreen.class.getResource(path);
+        var url = MedicosEspecialidadesScreen.class.getResource(path);
         if (url == null) {
-            System.err.println("⚠ Icono no encontrado: " + path + "  -> usando ImageView vacío");
-            return new ImageView(); // vacío (no truena)
+            System.err.println("⚠ Icono no encontrado: " + path);
+            return new ImageView();
         }
         ImageView iv = new ImageView(new Image(url.toExternalForm()));
         iv.setFitWidth(w);
         iv.setFitHeight(h);
         return iv;
     }
-
     private static ImageView createIcon(String fileName, double w, double h) {
         return safeIcon(fileName, w, h);
     }
 
-    public void show(Stage stage, String nombreUsuario) {
+    // ---------- Pantalla ----------
+    public void show(Stage stage) {
         VBox root = new VBox();
-        root.setStyle("-fx-background-color: white;");
+        root.setStyle("-fx-background-color:white;");
         stage.setTitle("SIMED - Sistema de Citas Médicas");
 
-        // ===== Barra superior =====
-        HBox menuBar = new HBox();
-        menuBar.setStyle("-fx-background-color: #FFFFFF;");
-        menuBar.setPadding(new Insets(0, 40, 0, 40));
-        menuBar.setSpacing(10);
-        menuBar.setAlignment(Pos.CENTER_LEFT);
+        // TOP BAR
+        HBox top = new HBox();
+        top.setStyle("-fx-background-color:#FFFFFF; -fx-border-color: transparent transparent #E9EEF5 transparent; -fx-border-width:0 0 1 0;");
+        top.setPadding(new Insets(10,32,10,32));
+        top.setAlignment(Pos.CENTER_LEFT);
+        top.setSpacing(12);
 
         ImageView simedIcon = createIcon("Logo.png", 120, 120);
 
-        String estiloBoton = "-fx-background-color: #D0E1F9; " +
-                "-fx-text-fill: #1F355E; " +
-                "-fx-font-weight: bold; " +
-                "-fx-background-radius: 10; " +
-                "-fx-padding: 10 20 10 20;";
-
-        String estiloEmergencia = "-fx-background-color: #B1361E; " +
-                "-fx-text-fill: white; -fx-font-weight: bold; " +
-                "-fx-background-radius: 10; " +
-                "-fx-padding: 10 20 10 20;";
+        String estiloBoton =
+                "-fx-background-color: #D0E1F9; -fx-text-fill: #1F355E; -fx-font-weight: bold;" +
+                        "-fx-background-radius: 10; -fx-padding: 10 20 10 20;";
+        String estiloEmergencia =
+                "-fx-background-color: #B1361E; -fx-text-fill: white; -fx-font-weight: bold;" +
+                        "-fx-background-radius: 10; -fx-padding: 10 20 10 20;";
 
         Button btnInicio = new Button("Inicio", createIcon("Inicio.png", 24, 24));
         btnInicio.setContentDisplay(ContentDisplay.LEFT);
         btnInicio.setGraphicTextGap(8);
         btnInicio.setStyle(estiloBoton);
         btnInicio.setMinHeight(40);
-        // si Inicio debe recargar esta misma pantalla, puedes dejarlo sin acción
+        // Si quieres que regrese a recepción:
+        btnInicio.setOnAction(e -> new AdminRecepcionistaScreen().show(stage, "Recepcionista"));
 
-        Button btnCitas = new Button("Mis citas", createIcon("miCitas.png", 24, 24));
-        btnCitas.setContentDisplay(ContentDisplay.LEFT);
-        btnCitas.setGraphicTextGap(8);
-        btnCitas.setStyle(estiloBoton);
-        btnCitas.setMinHeight(40);
-        btnCitas.setOnAction(e -> {
-            String matricula = Sesion.getMatricula();   // usa la matrícula guardada en sesión
-            CitasAgendadasScreen.show(centerContainer, matricula);
-        });
 
         Button btnEmergencia = new Button("EMERGENCIA");
         btnEmergencia.setStyle(estiloEmergencia);
         btnEmergencia.setFont(Font.font("System", FontWeight.BOLD, 14));
         btnEmergencia.setMinHeight(40);
 
-        HBox centerButtons = new HBox(btnInicio, btnCitas, btnEmergencia);
+        HBox centerButtons = new HBox(btnInicio, btnEmergencia);
         centerButtons.setSpacing(60);
         centerButtons.setAlignment(Pos.CENTER);
         centerButtons.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(centerButtons, Priority.ALWAYS);
 
-        // Nombre de usuario (desde BD por matrícula)
+        // Nombre de usuario (desde BD por matrícula de sesión)
         String m = Sesion.getMatricula();
         String nombrePaciente = obtenerNombrePacientePorMatricula(m);
         if (nombrePaciente == null || nombrePaciente.isBlank()) {
             System.out.println("⚠ No se encontró paciente para matrícula: " + m);
-            nombrePaciente = (nombreUsuario == null || nombreUsuario.isBlank()) ? "Paciente" : nombreUsuario;
+            nombrePaciente = "Recepcionista";
         }
 
         Label lblUsuario = new Label(nombrePaciente, createIcon("User.png", 24, 24));
@@ -123,30 +111,42 @@ public class AdminRecepcionistaScreen {
             try { new org.example.Main().start(loginStage); } catch (Exception ex) { ex.printStackTrace(); }
         });
 
-        Region spacerL = new Region();
-        Region spacerR = new Region();
+        Region spacerL = new Region(), spacerR = new Region();
         HBox.setHgrow(spacerL, Priority.ALWAYS);
         HBox.setHgrow(spacerR, Priority.ALWAYS);
 
-        menuBar.getChildren().addAll(simedIcon, spacerL, centerButtons, spacerR, lblUsuario, btnSalir);
+        top.getChildren().addAll(simedIcon, spacerL, centerButtons, spacerR, lblUsuario, btnSalir);
 
-        // ===== Centro: dos tarjetas grandes (Paciente / Médico) =====
-        HBox cardsRow = new HBox(80);
-        cardsRow.setAlignment(Pos.CENTER);
-        cardsRow.setPadding(new Insets(60));
+        // CONTENIDO
+        BorderPane content = new BorderPane();
+        content.setPadding(new Insets(30,40,30,40));
 
-        StackPane cardPaciente = crearCardGrande("Paciente", safeIcon("patientsss.png", 60, 60));
-        StackPane cardMedico   = crearCardGrande("Médico",   safeIcon("doctorsss.png", 60, 60));
+        GridPane grid = new GridPane();
+        grid.setHgap(40);
+        grid.setVgap(40);
+        grid.setAlignment(Pos.CENTER);
 
-        // Navegación
-        cardPaciente.setOnMouseClicked(ev -> new MenuScreen().show(stage));
-        cardMedico.setOnMouseClicked(ev -> new MedicosEspecialidadesScreen().show(stage));
+        grid.add(servicioCard("Medicina General", createIcon("MedicinaGeneral.png",60,60), stage), 0, 0);
+        grid.add(servicioCard("Cardiología",      createIcon("Cardiologia.png",60,60),      stage), 1, 0);
+        grid.add(servicioCard("Neurología",       createIcon("Neurologia.png",60,60),       stage), 2, 0);
+        grid.add(servicioCard("Ginecología",      createIcon("gineco.png",60,60),           stage), 0, 1);
+        grid.add(servicioCard("Urología",         createIcon("urologia.png",60,60),         stage), 1, 1);
+        grid.add(servicioCard("Traumatología",    createIcon("trauma.png",60,60),           stage), 2, 1);
 
-        cardsRow.getChildren().addAll(cardPaciente, cardMedico);
+        centerContainer.getChildren().setAll(grid);
+        content.setCenter(centerContainer);
 
-        // Montaje final: el centro se mete dentro de centerContainer
-        centerContainer.getChildren().setAll(cardsRow);
-        root.getChildren().addAll(menuBar, centerContainer);
+        // Botón Atrás
+        Button btnAtras = new Button("Atrás");
+        btnAtras.setStyle("-fx-background-color:#1F355E; -fx-text-fill:white; -fx-background-radius:8; -fx-padding:6 14;");
+        btnAtras.setOnAction(e -> new AdminRecepcionistaScreen().show(stage, "Recepcionista"));
+        HBox bottom = new HBox(btnAtras);
+        bottom.setAlignment(Pos.CENTER_LEFT);
+        bottom.setPadding(new Insets(10,0,0,0));
+        content.setBottom(bottom);
+
+        // Montaje
+        root.getChildren().addAll(top, content);
 
         Scene scene = new Scene(root, 1000, 700);
         stage.setScene(scene);
@@ -154,48 +154,48 @@ public class AdminRecepcionistaScreen {
         stage.show();
     }
 
-    /** Card grande con burbuja superior e icono centrado. */
-    private StackPane crearCardGrande(String titulo, Node icono) {
-        // Burbuja superior
-        Circle circle = new Circle(50);
+    // ---------- Card de especialidad ----------
+    /** Card con icono y título grande; al clic abre MenuScreen y muestra doctores de esa especialidad */
+    private static StackPane servicioCard(String titulo, Node icono, Stage stage){
+        Circle circle = new Circle(40);
         circle.setFill(Color.web("#F3F7FB"));
         circle.setStroke(Color.WHITE);
-        circle.setStrokeWidth(8);
+        circle.setStrokeWidth(7);
+
         StackPane iconCircle = new StackPane(circle, icono);
-        iconCircle.setPrefSize(100, 100);
-        iconCircle.setTranslateY(5);
+        iconCircle.setTranslateY(-40);
 
-        // Panel rectangular
-        VBox panel = new VBox(10);
-        panel.setAlignment(Pos.CENTER);
-        panel.setTranslateY(90);
-        panel.setPrefSize(370, 200);
-        panel.setStyle("-fx-background-color: #F3F7FB; -fx-background-radius: 20;");
+        Label lblTitulo = new Label(titulo);
+        lblTitulo.setFont(Font.font("System", FontWeight.BOLD, 20));
+        lblTitulo.setTextFill(Color.web("#1F355E"));
+        lblTitulo.setWrapText(true);
+        lblTitulo.setAlignment(Pos.CENTER);
 
-        Label lbl = new Label(titulo);
-        lbl.setFont(Font.font("System", FontWeight.BOLD, 28));
-        lbl.setTextFill(Color.web("#1F355E"));
+        VBox card = new VBox(iconCircle, lblTitulo);
+        card.setAlignment(Pos.TOP_CENTER);
+        card.setSpacing(-10);
+        card.setStyle("-fx-background-color:#F3F7FB; -fx-background-radius:20;");
+        card.setPrefSize(310, 200);
 
-        VBox content = new VBox(iconCircle, lbl);
-        lbl.setTranslateY(30);
-        content.setAlignment(Pos.CENTER);
-
-        StackPane card = new StackPane(panel, content);
-        card.setPadding(new Insets(10));
+        StackPane wrap = new StackPane(card);
+        wrap.setAlignment(Pos.TOP_CENTER);
+        wrap.setPadding(new Insets(10));
 
         // Hover
-        card.setOnMouseEntered(e -> {
-            panel.setScaleX(1.05); panel.setScaleY(1.05);
-            iconCircle.setTranslateY(-25);
-        });
-        card.setOnMouseExited(e -> {
-            panel.setScaleX(1.0); panel.setScaleY(1.0);
-            iconCircle.setTranslateY(5);
+        wrap.setOnMouseEntered(e -> { card.setScaleX(1.07); card.setScaleY(1.07); iconCircle.setTranslateY(-60); });
+        wrap.setOnMouseExited (e -> { card.setScaleX(1.0);  card.setScaleY(1.0);  iconCircle.setTranslateY(-40); });
+
+        // CLICK -> abrir lista de doctores
+        wrap.setOnMouseClicked(e -> {
+            MenuScreen ms = new MenuScreen();
+            ms.show(stage);            // 1) inicializa su escena y contenedores
+            ms.mostrarDoctores(titulo);// 2) ya puedes navegar a la lista
         });
 
-        return card;
+        return wrap;
     }
 
+    // ---------- Consulta de nombre por matrícula ----------
     private String obtenerNombrePacientePorMatricula(String matriculaSesion) {
         if (matriculaSesion == null || matriculaSesion.isBlank()) return null;
 
