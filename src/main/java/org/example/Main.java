@@ -182,23 +182,24 @@ public class Main extends Application {
 
                 // Paso 2: validar las credenciales si el correo existe
                 if (validarCredenciales(correo, contrasena)) {
-
                     UsuarioInfo info = obtenerUsuarioInfo(correo);
                     if (info == null) {
                         showAlert("Error", "No se encontró información para este usuario.");
                         return;
                     }
-
                     Sesion.setNombreUsuario(info.nombre);
 
-                    if ("medico".equalsIgnoreCase(info.rol) || (info.idMedico != null && !info.idMedico.isBlank())) {
-                        // DOCTOR
+                    if (info.esAdminRecep()) {
+                        // RECEPCIONISTA / ADMIN
+                        pantallaDeCarga(this::mostrarHomeRecepcionista);
+                    } else if (info.esMedico()) {
+                        // MÉDICO
                         Sesion.setDoctorId(info.idMedico);
-                        pantallaDeCarga(this::mostrarAgendaDoctor);  // ← usa la misma pantalla de carga
+                        pantallaDeCarga(this::mostrarAgendaDoctor);
                     } else {
                         // PACIENTE
                         if (info.matricula != null) Sesion.setMatricula(info.matricula);
-                        pantallaDeCarga(this::showNextScreen);       // ← misma pantalla de carga
+                        pantallaDeCarga(this::showNextScreen);
                     }
                 } else {
                     showAlert("Error", "Contraseña incorrecta.");
@@ -1057,24 +1058,32 @@ public class Main extends Application {
     }
 
     private static class UsuarioInfo {
-        String rol;             // "paciente" | "medico"
+        String rol;             // "paciente" | "medico" | "admin"/"recepcionista"
+        String tipoUsuario;     // valor de ADMIN.USUARIO.TIPO_USUARIO (por si lo usas)
         String correo;
-        String idMedico;        // de ADMIN.MEDICOS
-        Long   idPaciente;      // de ADMIN.PACIENTE
-        String matricula;       // PACIENTE.MATRICULA
-        String nombre;          // nombre completo (paciente o médico)
+        String idMedico;
+        Long   idPaciente;
+        String matricula;
+        String nombre;
+
+        boolean esMedico() {
+            return "medico".equalsIgnoreCase(rol) || (idMedico != null && !idMedico.isBlank());
+        }
+        boolean esAdminRecep() {
+            return "admin".equalsIgnoreCase(rol) || "recepcionista".equalsIgnoreCase(rol)
+                    || "admin".equalsIgnoreCase(tipoUsuario) || "recepcionista".equalsIgnoreCase(tipoUsuario);
+        }
     }
 
     private UsuarioInfo obtenerUsuarioInfo(String correo) {
         final String sql =
-                "SELECT u.rol, u.correo, " +
+                "SELECT u.rol, u.tipo_usuario, u.correo, " +
                         "       p.id_paciente, p.matricula, (p.nombre || ' ' || p.apellidos) AS nom_p, " +
                         "       m.id_medico,               (m.nombre || ' ' || m.apellidos) AS nom_m " +
                         "FROM   ADMIN.USUARIO u " +
                         "LEFT JOIN ADMIN.PACIENTE p ON p.correo = u.correo " +
                         "LEFT JOIN ADMIN.MEDICOS  m ON m.correo = u.correo " +
                         "WHERE  u.correo = ?";
-
         try (Connection con = OracleWalletConnector.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setString(1, correo);
@@ -1082,6 +1091,7 @@ public class Main extends Application {
                 if (rs.next()) {
                     UsuarioInfo i = new UsuarioInfo();
                     i.rol        = rs.getString("rol");
+                    i.tipoUsuario= rs.getString("tipo_usuario");
                     i.correo     = rs.getString("correo");
                     i.idPaciente = (rs.getObject("id_paciente") == null) ? null : rs.getLong("id_paciente");
                     i.matricula  = rs.getString("matricula");
@@ -1104,5 +1114,8 @@ public class Main extends Application {
         new app.DoctorAgendaScree().show(currentStage, Sesion.getDoctorId(), Sesion.getNombreUsuario());
     }
 
-
+    private void mostrarHomeRecepcionista() {
+        Stage currentStage = (Stage) formContainer.getScene().getWindow();
+        new app.AdminRecepcionistaScreen().show(currentStage, Sesion.getNombreUsuario());
+    }
 }

@@ -210,34 +210,6 @@ public class MenuScreen {
         stage.show();
     }
 
-    private VBox crearDoctorCard(Doctor doctor) {
-        VBox card = new VBox();
-        card.setPadding(new Insets(15));
-        card.setSpacing(10);
-        card.setAlignment(Pos.CENTER);
-        card.setPrefWidth(200);
-        card.setStyle("-fx-background-color: #D0E1F9; -fx-background-radius: 15;");
-
-        ImageView imageView = new ImageView(new Image(getClass().getResource("/images/mainPage/" + doctor.getImagen()).toExternalForm()));
-        imageView.setFitWidth(120);
-        imageView.setFitHeight(120);
-
-        Label nombre = new Label(doctor.getNombre());
-        nombre.setFont(new Font(14));
-        nombre.setTextFill(Color.web("#1F355E"));
-        nombre.setWrapText(true);
-        nombre.setAlignment(Pos.CENTER);
-
-        Label horario = new Label(doctor.getHorario());
-        horario.setFont(new Font(12));
-        horario.setTextFill(Color.web("#3A3A3A"));
-        horario.setWrapText(true);
-        horario.setAlignment(Pos.CENTER);
-
-        card.getChildren().addAll(imageView, nombre, horario);
-        return card;
-    }
-
     private static ImageView createIcon(String fileName, double width, double height) {
         String path = "/images/mainPage/" + fileName;
         Image img = new Image(MenuScreen.class.getResource(path).toExternalForm());
