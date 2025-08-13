@@ -78,11 +78,19 @@ public class MedicosEspecialidadesScreen {
         salir.setStyle("-fx-background-color:#1F355E;");
         salir.setOnAction(e -> new org.example.Main().start(ScreenRouter.getStage())); // si quieres volver al login
 
+        Button btnRegistrar = new Button("Registrar");
+        btnRegistrar.setStyle("-fx-background-color:#1F355E; -fx-text-fill:white; -fx-font-weight:bold; -fx-background-radius:10; -fx-padding:8 16;");
+        btnRegistrar.setMinHeight(36);
+        btnRegistrar.setOnAction(e -> new RegistroScreen().show(ScreenRouter.getStage()));
+
+        VBox derecha = new VBox(6, salir, btnRegistrar);
+        derecha.setAlignment(Pos.CENTER_RIGHT);
+
         Region spL = new Region(), spR = new Region();
         HBox.setHgrow(spL, Priority.ALWAYS);
         HBox.setHgrow(spR, Priority.ALWAYS);
 
-        top.getChildren().addAll(simed, spL, middle, spR, user, salir);
+        top.getChildren().addAll(simed, spL, middle, spR, user, derecha);
 
         // Contenido
         BorderPane content = new BorderPane();
