@@ -9,7 +9,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
-
+import app.ScreenRouter;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
@@ -34,8 +34,6 @@ import java.util.regex.Pattern;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import java.sql.SQLException;
-
-import static java.awt.SystemColor.window;
 
 
 public class Main extends Application {
@@ -108,10 +106,8 @@ public class Main extends Application {
         root.getChildren().add(mainContainer);
         root.setPrefSize(800, 500);
 
-        Scene scene = new Scene(root, 800, 500);
-
-        primaryStage.setScene(scene);
-        primaryStage.show();
+        ScreenRouter.initIfNeeded(primaryStage);
+        ScreenRouter.setView(root);
     }
 
     // Método para cargar una fuente
@@ -630,9 +626,7 @@ public class Main extends Application {
     }
 
     private void showNextScreen() {
-        Stage currentStage = (Stage) formContainer.getScene().getWindow(); // obtener el stage actual
-        MenuScreen menuScreen = new MenuScreen(); // crear instancia
-        menuScreen.show(currentStage); // pasar el stage como lo espera tu método
+        new MenuScreen().show(ScreenRouter.getStage());
     }
 
 
@@ -1110,12 +1104,17 @@ public class Main extends Application {
     }
 
     private void mostrarAgendaDoctor() {
-        Stage currentStage = (Stage) formContainer.getScene().getWindow();
-        new app.DoctorAgendaScree().show(currentStage, Sesion.getDoctorId(), Sesion.getNombreUsuario());
+        new app.DoctorAgendaScree().show(
+                ScreenRouter.getStage(),
+                Sesion.getDoctorId(),
+                Sesion.getNombreUsuario()
+        );
     }
 
     private void mostrarHomeRecepcionista() {
-        Stage currentStage = (Stage) formContainer.getScene().getWindow();
-        new app.AdminRecepcionistaScreen().show(currentStage, Sesion.getNombreUsuario());
+        new app.AdminRecepcionistaScreen().show(
+                ScreenRouter.getStage(),
+                Sesion.getNombreUsuario()
+        );
     }
 }

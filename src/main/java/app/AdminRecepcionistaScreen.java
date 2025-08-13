@@ -79,22 +79,12 @@ public class AdminRecepcionistaScreen {
         btnInicio.setMinHeight(40);
         // si Inicio debe recargar esta misma pantalla, puedes dejarlo sin acción
 
-        Button btnCitas = new Button("Mis citas", createIcon("miCitas.png", 24, 24));
-        btnCitas.setContentDisplay(ContentDisplay.LEFT);
-        btnCitas.setGraphicTextGap(8);
-        btnCitas.setStyle(estiloBoton);
-        btnCitas.setMinHeight(40);
-        btnCitas.setOnAction(e -> {
-            String matricula = Sesion.getMatricula();   // usa la matrícula guardada en sesión
-            CitasAgendadasScreen.show(centerContainer, matricula);
-        });
-
         Button btnEmergencia = new Button("EMERGENCIA");
         btnEmergencia.setStyle(estiloEmergencia);
         btnEmergencia.setFont(Font.font("System", FontWeight.BOLD, 14));
         btnEmergencia.setMinHeight(40);
 
-        HBox centerButtons = new HBox(btnInicio, btnCitas, btnEmergencia);
+        HBox centerButtons = new HBox(btnInicio, btnEmergencia);
         centerButtons.setSpacing(60);
         centerButtons.setAlignment(Pos.CENTER);
         centerButtons.setMaxWidth(Double.MAX_VALUE);
@@ -140,7 +130,7 @@ public class AdminRecepcionistaScreen {
 
         // Navegación
         cardPaciente.setOnMouseClicked(ev -> new MenuScreen().show(stage));
-        cardMedico.setOnMouseClicked(ev -> new MedicosEspecialidadesScreen().show(stage));
+        cardMedico.setOnMouseClicked(ev -> new MedicosEspecialidadesScreen().show(ScreenRouter.getStage()));
 
         cardsRow.getChildren().addAll(cardPaciente, cardMedico);
 
@@ -149,7 +139,7 @@ public class AdminRecepcionistaScreen {
         root.getChildren().addAll(menuBar, centerContainer);
 
         Scene scene = new Scene(root, 1000, 700);
-        stage.setScene(scene);
+        ScreenRouter.setView(root);
         stage.setMaximized(true);
         stage.show();
     }

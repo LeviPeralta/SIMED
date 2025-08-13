@@ -205,7 +205,7 @@ public class MenuScreen {
         root.getChildren().addAll(menuBar, centerContainer); // ya los creaste antes correctamente
 
         Scene scene = new Scene(root, 1000, 700);
-        stage.setScene(scene);
+        ScreenRouter.setView(root);
         stage.setMaximized(true);
         stage.show();
     }
