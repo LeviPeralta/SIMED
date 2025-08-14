@@ -41,6 +41,7 @@ public class DoctorAgendaScree {
 
     public void show(Stage stage, String idMedico, String nombreMedico) {
         this.stage = stage;
+        this.idMedico = idMedico != null ? idMedico.trim() : null;
 
         // root y center
         root = new BorderPane();
@@ -427,5 +428,5 @@ public class DoctorAgendaScree {
         for (int i = 0; i < 7; i++) dias.add(start.plusDays(i));
         return dias;
     }
-
+    
 }
