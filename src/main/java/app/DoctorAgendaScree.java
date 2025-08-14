@@ -268,16 +268,20 @@ public class DoctorAgendaScree {
         Button btnSalir = new Button("", icon("Close.png", 24, 24));
         btnSalir.setStyle("-fx-background-color: #1F355E;");
         btnSalir.setOnAction(e -> {
-            // Cerrar y volver al login
-            Stage current = (Stage) menuBar.getScene().getWindow();
-            current.close();
-            Stage login = new Stage();
+            app.Sesion.setDoctorId(null);
+            app.Sesion.setMatricula(null);
+            app.Sesion.setNombreUsuario(null);
+
+            Stage ventana = (Stage) btnSalir.getScene().getWindow();
             try {
-                new org.example.Main().start(login);
+                new org.example.Main().start(ventana);
             } catch (Exception ex) {
                 ex.printStackTrace();
             }
         });
+
+
+
 
         Region spacerL = new Region();
         Region spacerR = new Region();
@@ -303,8 +307,9 @@ public class DoctorAgendaScree {
     }
 
     private Node buildDayView(LocalDate dia) {
+        ExpedienteMedDao expDao = new ExpedienteMedDao();
         // Traemos las citas del día con nombres de paciente
-        Map<LocalTime, String> citasDelDia = cargarCitasDia(dia);
+        Map<LocalTime, CitaInfo> citasDelDia = cargarCitasDia(dia);
 
         StackPane wrapper = new StackPane();
         wrapper.setPadding(new Insets(10));
@@ -342,19 +347,37 @@ public class DoctorAgendaScree {
             celda.setBorder(new Border(new BorderStroke(Color.web("#CAD3E0"),
                     BorderStrokeStyle.SOLID, new CornerRadii(6), BorderWidths.DEFAULT)));
 
-            String paciente = citasDelDia.get(t.withSecond(0).withNano(0));
-            if (paciente != null) {
-                // OCUPADA: azul con nombre
+
+            citasDelDia = cargarCitasDia(dia);
+            DoctorAgendaScree.CitaInfo cinfo = citasDelDia.get(t.withSecond(0).withNano(0));
+            if (cinfo != null) {
+                boolean bloqueada;
+                try { bloqueada = expDao.existsByCita(cinfo.idCita); }
+                catch (Exception ex) { bloqueada = false; } // si falla, no bloquees
+
                 celda.setStyle("-fx-background-color: #6D84A2; -fx-background-radius: 6;");
-                Label name = new Label(paciente);
+                Label name = new Label(cinfo.nombrePaciente + (bloqueada ? "  (con expediente)" : ""));
                 name.setStyle("-fx-text-fill: white; -fx-font-weight: normal;");
                 celda.getChildren().add(name);
                 StackPane.setAlignment(name, Pos.CENTER_LEFT);
                 StackPane.setMargin(name, new Insets(0, 0, 0, 14));
+
+                if (!bloqueada) {
+                    // Solo si NO hay expediente, permite abrirlo
+                    celda.setOnMouseClicked(e -> {
+                        ExpedienteMedScreen exp = new ExpedienteMedScreen();
+                        // pásale referencia a ESTA agenda y el día actual
+                        exp.show((Stage) celda.getScene().getWindow(), cinfo, this, dia);
+                    });
+                } else {
+                    // Con expediente: sin handler (bloqueada) + tooltip
+                    Tooltip.install(celda, new Tooltip("Cita ya tiene expediente"));
+                }
+
             } else {
-                // DISPONIBLE: blanca
                 celda.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 6;");
             }
+
 
             tabla.add(celda, 1, row);
 
@@ -378,10 +401,11 @@ public class DoctorAgendaScree {
         return content;
     }
 
-    private Map<LocalTime, String> cargarCitasDia(LocalDate dia) {
-        Map<LocalTime, String> map = new HashMap<>();
+    private Map<LocalTime, CitaInfo> cargarCitasDia(LocalDate dia) {
+        Map<LocalTime, CitaInfo> map = new HashMap<>();
         final String sql =
-                "SELECT c.FECHA_HORA, p.NOMBRE || ' ' || p.APELLIDOS AS PACIENTE " +
+                "SELECT c.ID_CITA, c.ID_MEDICO, c.ID_PACIENTE, c.FECHA_HORA, " +
+                        "       p.NOMBRE || ' ' || p.APELLIDOS AS PACIENTE " +
                         "FROM   ADMIN.CITA c " +
                         "JOIN   ADMIN.PACIENTE p ON p.ID_PACIENTE = c.ID_PACIENTE " +
                         "WHERE  c.ID_MEDICO = ? AND TRUNC(CAST(c.FECHA_HORA AS DATE)) = ?";
@@ -392,9 +416,12 @@ public class DoctorAgendaScree {
             ps.setDate(2, java.sql.Date.valueOf(dia));
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    LocalDateTime ldt = rs.getTimestamp(1).toLocalDateTime().withSecond(0).withNano(0);
-                    String paciente = rs.getString(2);
-                    map.put(ldt.toLocalTime(), paciente);
+                    long idCita      = rs.getLong("ID_CITA");
+                    String idMed     = rs.getString("ID_MEDICO");
+                    long idPac       = rs.getLong("ID_PACIENTE");
+                    LocalDateTime fH = rs.getTimestamp("FECHA_HORA").toLocalDateTime().withSecond(0).withNano(0);
+                    String paciente  = rs.getString("PACIENTE");
+                    map.put(fH.toLocalTime(), new CitaInfo(idCita, idMed, idPac, fH, paciente));
                 }
             }
         } catch (SQLException e) {
@@ -402,6 +429,7 @@ public class DoctorAgendaScree {
         }
         return map;
     }
+
     private void renderWeek() {
         Node weekGrid = buildWeekView(); // tu método que pinta la semana
 
@@ -428,5 +456,23 @@ public class DoctorAgendaScree {
         for (int i = 0; i < 7; i++) dias.add(start.plusDays(i));
         return dias;
     }
-    
+
+    public static class CitaInfo {
+        public final long idCita;
+        public final String idMedico;
+        public final long idPaciente;
+        public final LocalDateTime fechaHora;
+        public final String nombrePaciente; // “Nombre Apellidos”
+
+        public CitaInfo(long idCita, String idMedico, long idPaciente, LocalDateTime fechaHora, String nombrePaciente) {
+            this.idCita = idCita;
+            this.idMedico = idMedico;
+            this.idPaciente = idPaciente;
+            this.fechaHora = fechaHora;
+            this.nombrePaciente = nombrePaciente;
+        }
+    }
+
+    public void goToWeek() { renderWeek(); }
+    public void goToDay(LocalDate dia) { renderDay(dia); }
 }
