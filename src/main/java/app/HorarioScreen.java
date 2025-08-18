@@ -44,7 +44,8 @@ public class HorarioScreen {
     private Doctor doctor;            // doctor.getId() -> String, lo convertimos a int
     private String especialidad;
     private String idPaciente;        // <-- VARCHAR2 en BD
-    private Integer idMedicoIntResuelto = null;
+    private Integer citaAnteriorId = null;   // ⬅️ NUEVO: id de la cita que se va a borrar (si aplica)
+
 
     private BorderPane root;
     private GridPane tabla;
@@ -56,15 +57,37 @@ public class HorarioScreen {
     private HorarioScreen() {}
 
     /** Punto de entrada */
-    public static void mostrarHorario(Doctor doctor, String especialidad, Pane centerContainer, String idPaciente) {
+    // 1) Crear cita (SIN id de cita anterior)
+    public static void mostrarHorario(Doctor doctor,
+                                      String especialidad,
+                                      javafx.scene.layout.Pane centerContainer,
+                                      String idPaciente) {
         HorarioScreen hs = new HorarioScreen();
         hs.doctor = doctor;
         hs.especialidad = especialidad;
-        hs.idPaciente = idPaciente;      // ahora String
+        hs.idPaciente = idPaciente;
         hs.hostContainer = centerContainer;
-        hs.semanaBase = hs.obtenerLunes(LocalDate.now());
+        hs.semanaBase = hs.obtenerLunes(java.time.LocalDate.now());
         hs.render();
     }
+
+    // 2) Reagendar (CON id de cita anterior)
+//    OJO: mismo orden que usas al llamar desde CitasMed
+    public static void mostrarHorario(Doctor doctor,
+                                      String especialidad,
+                                      javafx.scene.layout.Pane centerContainer,
+                                      String idPaciente,
+                                      Integer citaAnteriorId) {
+        HorarioScreen hs = new HorarioScreen();
+        hs.doctor = doctor;
+        hs.especialidad = especialidad;
+        hs.idPaciente = idPaciente;
+        hs.citaAnteriorId = citaAnteriorId;
+        hs.hostContainer = centerContainer;
+        hs.semanaBase = hs.obtenerLunes(java.time.LocalDate.now());
+        hs.render();
+    }
+
 
     /* ===================== RENDER ===================== */
 
@@ -285,7 +308,7 @@ public class HorarioScreen {
         // Resolver ID_PACIENTE (NUMBER) desde la matrícula
         Long idPacienteNumber = obtenerIdPacientePorMatricula(matriculaSesion);
         if (idPacienteNumber == null) {
-            throw new SQLException("No se encontró ID_PACIENTE para la matrícula: " + matriculaSesion);
+            throw new SQLException("No se encontró la matrícula del paciente.");
         }
 
         final String sql = "INSERT INTO CITA (ID_CITA, ID_PACIENTE, ID_MEDICO, FECHA_HORA) " +
@@ -621,7 +644,10 @@ public class HorarioScreen {
     }
 
     private Long obtenerIdPacientePorMatricula(String matricula) throws SQLException {
-        final String sql = "SELECT ID_PACIENTE FROM PACIENTE WHERE UPPER(MATRICULA) = ?";
+        if (matricula == null || matricula.isBlank()) {
+            return null; // devolvemos null y que el caller avise al usuario
+        }
+        final String sql = "SELECT ID_PACIENTE FROM ADMIN.PACIENTE WHERE UPPER(MATRICULA) = ?";
         try (Connection con = OracleWalletConnector.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setString(1, matricula.trim().toUpperCase());
@@ -631,6 +657,7 @@ public class HorarioScreen {
         }
         return null;
     }
+
 
     private void styleBotonSemana(Button b) {
         // Azul oscuro de tu paleta + texto blanco + bordes redondeados

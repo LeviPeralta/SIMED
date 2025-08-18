@@ -19,10 +19,12 @@ import java.util.List;
 public class DoctoresPorEspecialidadScreen {
 
     private final StackPane centerContainer = new StackPane();
+    private HBox paginacionHolder;                 // NUEVO: contenedor que se regenera
     private int currentPage = 1;
     private static final int DOCTORES_POR_PAGINA = 6; // 2 cols × 3 filas
 
     private static final String BASE_ASSETS = "/images/mainPage/";
+    private static final String DOCTORS_IMG_BASE = "/image/Doctors/";  // NUEVO
 
     private static ImageView icon(String file, double w, double h){
         var url = DoctoresPorEspecialidadScreen.class.getResource(BASE_ASSETS + file);
@@ -88,7 +90,7 @@ public class DoctoresPorEspecialidadScreen {
         top.getChildren().addAll(simed, spL, middle, spR, user, salir);
         root.setTop(top);
 
-        // ===== HEADER + BODY (sin scroll) =====
+        // ===== HEADER + BODY =====
         VBox header = new VBox(6);
         header.setPadding(new Insets(12, 32, 0, 32));
         header.setAlignment(Pos.CENTER_LEFT);
@@ -113,7 +115,7 @@ public class DoctoresPorEspecialidadScreen {
         body.setAlignment(Pos.TOP_CENTER);
         body.setPadding(new Insets(8, 32, 12, 32));
         body.setFillWidth(true);
-        VBox.setVgrow(body, Priority.ALWAYS); // ocupa el espacio disponible
+        VBox.setVgrow(body, Priority.ALWAYS);
 
         centerContainer.getChildren().setAll(renderPagina(especialidad));
         centerContainer.setMaxWidth(Double.MAX_VALUE);
@@ -125,7 +127,7 @@ public class DoctoresPorEspecialidadScreen {
         VBox.setVgrow(headerBody, Priority.ALWAYS);
         root.setCenter(headerBody);
 
-        // ===== FOOTER =====
+        // ===== FOOTER (Paginación reactiva) =====
         HBox footer = new HBox();
         footer.setAlignment(Pos.CENTER);
         footer.setPadding(new Insets(0, 32, 16, 32));
@@ -138,12 +140,14 @@ public class DoctoresPorEspecialidadScreen {
         left.setAlignment(Pos.CENTER_LEFT);
         HBox.setHgrow(left, Priority.ALWAYS);
 
-        HBox paginacion = crearBarraPaginacion(especialidad);
+        paginacionHolder = new HBox();                         // NUEVO
+        paginacionHolder.setAlignment(Pos.CENTER);
+        paginacionHolder.getChildren().setAll(crearBarraPaginacion(especialidad)); // NUEVO
 
         HBox right = new HBox();
         HBox.setHgrow(right, Priority.ALWAYS);
 
-        footer.getChildren().addAll(left, paginacion, right);
+        footer.getChildren().addAll(left, paginacionHolder, right);
         root.setBottom(footer);
 
         ScreenRouter.setView(root);
@@ -164,17 +168,15 @@ public class DoctoresPorEspecialidadScreen {
         grid.setAlignment(Pos.TOP_CENTER);
         grid.setPadding(new Insets(4, 0, 0, 0));
 
-        // Ancho responsivo a 2 columnas
+        // 2 columnas responsivas
         grid.setMaxWidth(Double.MAX_VALUE);
         grid.prefWidthProperty().bind(centerContainer.widthProperty());
         StackPane.setAlignment(grid, Pos.TOP_CENTER);
 
         ColumnConstraints c1 = new ColumnConstraints();
-        c1.setPercentWidth(50);
-        c1.setHgrow(Priority.ALWAYS);
+        c1.setPercentWidth(50); c1.setHgrow(Priority.ALWAYS);
         ColumnConstraints c2 = new ColumnConstraints();
-        c2.setPercentWidth(50);
-        c2.setHgrow(Priority.ALWAYS);
+        c2.setPercentWidth(50); c2.setHgrow(Priority.ALWAYS);
         grid.getColumnConstraints().setAll(c1, c2);
 
         int col = 0, row = 0;
@@ -190,15 +192,18 @@ public class DoctoresPorEspecialidadScreen {
     }
 
     private HBox tarjetaDoctor(Doctor d, String especialidadCtx){
-        // Foto circular más compacta
+        // FOTO: carga desde /image/Doctors/{archivo} con fallback
         ImageView photo = obtenerFotoDoctor(d);
-        photo.setFitWidth(96); photo.setFitHeight(96);
-        photo.setClip(new Circle(48));
+        photo.setFitWidth(96);
+        photo.setFitHeight(96);
+        photo.setPreserveRatio(true);
+        photo.setSmooth(true);
+        photo.setClip(new Circle(48, 48, 48));
 
         StackPane fotoWrap = new StackPane(photo);
         fotoWrap.setMinSize(120,120);
         fotoWrap.setPrefSize(120,120);
-        fotoWrap.setAlignment(Pos.CENTER_LEFT);
+        fotoWrap.setAlignment(Pos.CENTER);
 
         String nombre = (d.getNombre()!=null && !d.getNombre().isBlank()) ? d.getNombre() : "Médico";
         String esp    = (d.getEspecialidad()!=null && !d.getEspecialidad().isBlank()) ? d.getEspecialidad() : especialidadCtx;
@@ -215,11 +220,13 @@ public class DoctoresPorEspecialidadScreen {
 
         Button btnHorario = new Button("Cambiar horario");
         btnHorario.setStyle("-fx-background-color:#1F355E; -fx-text-fill:white; -fx-background-radius:8; -fx-padding:6 10;");
-        btnHorario.setOnAction(e -> HorarioScreen.mostrarHorario(d, esp, centerContainer, Sesion.getMatricula()));
+        btnHorario.setOnAction(e ->
+                HorarioScreen.mostrarHorario(d, esp, centerContainer, Sesion.getMatricula())
+        );
 
         Button btnCitas = new Button("Ver Citas");
         btnCitas.setStyle("-fx-background-color:#D0E1F9; -fx-text-fill:#1F355E; -fx-background-radius:8; -fx-padding:6 10;");
-        btnCitas.setOnAction(e -> CitasAgendadasScreen.show(centerContainer, Sesion.getMatricula()));
+        btnCitas.setOnAction(e -> CitasMed.show(centerContainer, d));   // NUEVO: abre la nueva pantalla
 
         HBox actions = new HBox(10, btnHorario, btnCitas);
         actions.setAlignment(Pos.CENTER_LEFT);
@@ -246,11 +253,51 @@ public class DoctoresPorEspecialidadScreen {
 
     private ImageView obtenerFotoDoctor(Doctor d){
         try {
-            if (d.getImagen() != null && !d.getImagen().isBlank()) {
-                Image image = new Image(d.getImagen(), true);
-                return new ImageView(image);
+            String img = d.getImagen();
+            if (img != null && !img.isBlank()) {
+
+                // 1) Si es URL absoluta o file:, cargar directo
+                String norm = img.trim();
+                if (norm.startsWith("http://") || norm.startsWith("https://") || norm.startsWith("file:")) {
+                    return new ImageView(new Image(norm, true));
+                }
+
+                // 2) Normalizar rutas tipo Windows/IDE y quedarnos con la parte del classpath
+                norm = norm.replace("\\", "/").replaceAll("^\\./", "");
+                // si viene con "src/main/resources/..." lo recortamos a classpath:
+                int idx = norm.indexOf("src/main/resources/");
+                if (idx >= 0) norm = norm.substring(idx + "src/main/resources/".length());
+
+                // quitar posibles dobles slashes
+                while (norm.startsWith("/")) norm = norm.substring(1);
+
+                // 3) Si ya trae la carpeta correcta, probar tal cual (classpath)
+                String try1 = "/" + norm;
+                var is1 = getClass().getResourceAsStream(try1);
+                if (is1 != null) return new ImageView(new Image(is1));
+
+                // 4) Si solo vino el nombre (o ruta parcial), buscar en /image/Doctors/
+                String fileName = norm.substring(norm.lastIndexOf('/') + 1);
+                String base = "/images/Doctors/" + fileName;
+
+                var is2 = getClass().getResourceAsStream(base);
+                if (is2 != null) return new ImageView(new Image(is2));
+
+                // 5) Probar sin extensión (.png/.jpg/.jpeg/.webp)
+                String nameNoExt = fileName.contains(".") ? fileName.substring(0, fileName.lastIndexOf('.')) : fileName;
+                String[] exts = {".png", ".jpg", ".jpeg", ".webp", ".PNG", ".JPG", ".JPEG", ".WEBP"};
+                for (String ext : exts) {
+                    var is3 = getClass().getResourceAsStream("/image/Doctors/" + nameNoExt + ext);
+                    if (is3 != null) return new ImageView(new Image(is3));
+                }
+
+                // 6) Log útil para depurar qué se intentó cargar
+                System.err.println("⚠ No se encontró imagen para doctor. Intentos: " + try1 + " | " + base + " (+exts)");
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        // Fallback al placeholder dentro de /images/mainPage/
         return icon("doctor_placeholder.png", 96, 96);
     }
 
@@ -262,17 +309,23 @@ public class DoctoresPorEspecialidadScreen {
         List<Doctor> docs = DoctorData.getDoctoresPorEspecialidad(especialidad);
         int totalPag = Math.max(1, (int)Math.ceil(docs.size() / (double) DOCTORES_POR_PAGINA));
 
-        Button primero = miniBtn("«", () -> { currentPage = 1; centerContainer.getChildren().setAll(renderPagina(especialidad)); });
-        Button anterior = miniBtn("‹", () -> { if (currentPage>1){ currentPage--; centerContainer.getChildren().setAll(renderPagina(especialidad)); } });
-        Button siguiente = miniBtn("›", () -> { if (currentPage<totalPag){ currentPage++; centerContainer.getChildren().setAll(renderPagina(especialidad)); } });
-        Button ultimo   = miniBtn("»", () -> { currentPage = totalPag; centerContainer.getChildren().setAll(renderPagina(especialidad)); });
-
+        Button primero = miniBtn("«", () -> { currentPage = 1; refresh(especialidad); });
+        Button anterior = miniBtn("‹", () -> { if (currentPage>1){ currentPage--; refresh(especialidad); } });
         HBox nums = new HBox(6);
         nums.setAlignment(Pos.CENTER);
         for (int i=1;i<=totalPag;i++) nums.getChildren().add(pill(i, especialidad));
+        Button siguiente = miniBtn("›", () -> { if (currentPage<totalPag){ currentPage++; refresh(especialidad); } });
+        Button ultimo   = miniBtn("»", () -> { currentPage = totalPag; refresh(especialidad); });
 
         bar.getChildren().addAll(primero, anterior, nums, siguiente, ultimo);
         return bar;
+    }
+
+    private void refresh(String especialidad){          // NUEVO: re-render del grid + barra
+        centerContainer.getChildren().setAll(renderPagina(especialidad));
+        if (paginacionHolder != null) {
+            paginacionHolder.getChildren().setAll(crearBarraPaginacion(especialidad));
+        }
     }
 
     private Button pill(int n, String esp){
@@ -280,7 +333,7 @@ public class DoctoresPorEspecialidadScreen {
         b.setStyle(n==currentPage
                 ? "-fx-background-color:#1F355E; -fx-text-fill:white; -fx-background-radius:12; -fx-padding:2 8;"
                 : "-fx-background-color:transparent; -fx-text-fill:#1F355E; -fx-background-radius:12; -fx-padding:2 8;");
-        b.setOnAction(e -> { currentPage = n; centerContainer.getChildren().setAll(renderPagina(esp)); });
+        b.setOnAction(e -> { currentPage = n; refresh(esp); });
         return b;
     }
 

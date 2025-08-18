@@ -19,8 +19,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import app.CitasAgendadasScreen;
-import app.Sesion;
 
 import org.example.OracleWalletConnector;
 
@@ -497,6 +495,7 @@ public class MenuScreen {
     public void mostrarHorarioDoctor(Doctor doctor, String especialidad) {
         HorarioScreen.mostrarHorario(doctor, especialidad, centerContainer, Sesion.getMatricula());
     }
+
 
     private String obtenerNombrePacientePorMatricula(String matriculaSesion) {
         if (matriculaSesion == null || matriculaSesion.isBlank()) return null;
