@@ -3,7 +3,7 @@ package app;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.Scene;
+import javafx.scene.Parent;
 import javafx.scene.control.Button;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
@@ -14,7 +14,6 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
-import javafx.stage.Stage;
 import org.example.OracleWalletConnector;
 
 import java.sql.Connection;
@@ -24,10 +23,7 @@ import java.sql.SQLException;
 
 public class AdminRecepcionistaScreen {
 
-    // contenedor central para overlays (mis citas, etc.)
     private final StackPane centerContainer = new StackPane();
-
-    // Carpeta base dentro de src/main/resources
     private static final String BASE_ASSETS = "/images/mainPage/";
 
     private static ImageView safeIcon(String fileName, double w, double h) {
@@ -35,7 +31,7 @@ public class AdminRecepcionistaScreen {
         var url = AdminRecepcionistaScreen.class.getResource(path);
         if (url == null) {
             System.err.println("⚠ Icono no encontrado: " + path + "  -> usando ImageView vacío");
-            return new ImageView(); // vacío (no truena)
+            return new ImageView();
         }
         ImageView iv = new ImageView(new Image(url.toExternalForm()));
         iv.setFitWidth(w);
@@ -47,10 +43,10 @@ public class AdminRecepcionistaScreen {
         return safeIcon(fileName, w, h);
     }
 
-    public void show(Stage stage, String nombreUsuario) {
+    // Nuevo método: devuelve la vista de la pantalla
+    public Parent getView() {
         VBox root = new VBox();
         root.setStyle("-fx-background-color: white;");
-        stage.setTitle("SIMED - Sistema de Citas Médicas");
 
         // ===== Barra superior =====
         HBox menuBar = new HBox();
@@ -77,7 +73,8 @@ public class AdminRecepcionistaScreen {
         btnInicio.setGraphicTextGap(8);
         btnInicio.setStyle(estiloBoton);
         btnInicio.setMinHeight(40);
-        // si Inicio debe recargar esta misma pantalla, puedes dejarlo sin acción
+        // Si inicio recarga la misma pantalla
+        btnInicio.setOnAction(e -> this.show());
 
         Button btnEmergencia = new Button("EMERGENCIA");
         btnEmergencia.setStyle(estiloEmergencia);
@@ -94,8 +91,7 @@ public class AdminRecepcionistaScreen {
         String m = Sesion.getMatricula();
         String nombrePaciente = obtenerNombrePacientePorMatricula(m);
         if (nombrePaciente == null || nombrePaciente.isBlank()) {
-            System.out.println("⚠ No se encontró paciente para matrícula: " + m);
-            nombrePaciente = (nombreUsuario == null || nombreUsuario.isBlank()) ? "Paciente" : nombreUsuario;
+            nombrePaciente = "Paciente";
         }
 
         Label lblUsuario = new Label(nombrePaciente, createIcon("User.png", 24, 24));
@@ -106,12 +102,7 @@ public class AdminRecepcionistaScreen {
 
         Button btnSalir = new Button("", createIcon("Close.png", 24, 24));
         btnSalir.setStyle("-fx-background-color: #1F355E;");
-        btnSalir.setOnAction(e -> {
-            Stage currentStage = (Stage) btnSalir.getScene().getWindow();
-            currentStage.close();
-            Stage loginStage = new Stage();
-            try { new org.example.Main().start(loginStage); } catch (Exception ex) { ex.printStackTrace(); }
-        });
+        btnSalir.setOnAction(e -> ScreenRouter.getStage().close());
 
         Region spacerL = new Region();
         Region spacerR = new Region();
@@ -120,7 +111,7 @@ public class AdminRecepcionistaScreen {
 
         menuBar.getChildren().addAll(simedIcon, spacerL, centerButtons, spacerR, lblUsuario, btnSalir);
 
-        // ===== Centro: dos tarjetas grandes (Paciente / Médico) =====
+        // ===== Centro: tarjetas Paciente / Médico =====
         HBox cardsRow = new HBox(80);
         cardsRow.setAlignment(Pos.CENTER);
         cardsRow.setPadding(new Insets(60));
@@ -129,24 +120,24 @@ public class AdminRecepcionistaScreen {
         StackPane cardMedico   = crearCardGrande("Médico",   safeIcon("doctorsss.png", 60, 60));
 
         // Navegación
-        cardPaciente.setOnMouseClicked(ev -> new MenuScreen().show(stage));
+        cardPaciente.setOnMouseClicked(ev -> new AdminPacientes().show());
         cardMedico.setOnMouseClicked(ev -> new MedicosEspecialidadesScreen().show(ScreenRouter.getStage()));
 
         cardsRow.getChildren().addAll(cardPaciente, cardMedico);
 
-        // Montaje final: el centro se mete dentro de centerContainer
         centerContainer.getChildren().setAll(cardsRow);
         root.getChildren().addAll(menuBar, centerContainer);
 
-        Scene scene = new Scene(root, 1000, 700);
-        ScreenRouter.setView(root);
-        stage.setMaximized(true);
-        stage.show();
+        return root;
+    }
+
+    // Nuevo método show() usando ScreenRouter
+    public void show() {
+        ScreenRouter.setView(getView());
     }
 
     /** Card grande con burbuja superior e icono centrado. */
     private StackPane crearCardGrande(String titulo, Node icono) {
-        // Burbuja superior
         Circle circle = new Circle(50);
         circle.setFill(Color.web("#F3F7FB"));
         circle.setStroke(Color.WHITE);
@@ -155,7 +146,6 @@ public class AdminRecepcionistaScreen {
         iconCircle.setPrefSize(100, 100);
         iconCircle.setTranslateY(5);
 
-        // Panel rectangular
         VBox panel = new VBox(10);
         panel.setAlignment(Pos.CENTER);
         panel.setTranslateY(90);
@@ -173,7 +163,6 @@ public class AdminRecepcionistaScreen {
         StackPane card = new StackPane(panel, content);
         card.setPadding(new Insets(10));
 
-        // Hover
         card.setOnMouseEntered(e -> {
             panel.setScaleX(1.05); panel.setScaleY(1.05);
             iconCircle.setTranslateY(-25);

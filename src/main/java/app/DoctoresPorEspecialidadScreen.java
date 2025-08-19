@@ -59,18 +59,7 @@ public class DoctoresPorEspecialidadScreen {
         bInicio.setMinHeight(36);
         bInicio.setOnAction(e -> new MedicosEspecialidadesScreen().show(ScreenRouter.getStage()));
 
-        Button bCitas = new Button("Mis citas", icon("miCitas.png",22,22));
-        bCitas.setContentDisplay(ContentDisplay.LEFT);
-        bCitas.setGraphicTextGap(8);
-        bCitas.setStyle(btn);
-        bCitas.setMinHeight(36);
-        bCitas.setOnAction(e -> CitasAgendadasScreen.show(centerContainer, Sesion.getMatricula()));
-
-        Button bEm = new Button("EMERGENCIA");
-        bEm.setStyle(btnEm);
-        bEm.setMinHeight(36);
-
-        HBox middle = new HBox(40, bInicio, bCitas, bEm);
+        HBox middle = new HBox(40, bInicio);
         middle.setAlignment(Pos.CENTER);
         HBox.setHgrow(middle, Priority.ALWAYS);
 

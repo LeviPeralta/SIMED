@@ -884,11 +884,6 @@ public class Main extends Application {
         delay.play();
     }
 
-    //Wrapper para el flujo paciente existente
-    private void pantallaDeCarga() {
-        pantallaDeCarga(this::showNextScreen);
-    }
-
     private boolean actualizarDatosPersonales(String correo, String nombres, String apellidos, LocalDate fecha, String genero, String curp, String telefono, String tipoUsuario){
         String sql = "UPDATE Usuario SET nombres = ?, apellidos = ?, fecha_nacimiento = ?, genero = ?, curp = ?, telefono = ?, tipo_usuario = ? WHERE correo = ?";
         try (Connection conn = OracleWalletConnector.getConnection();
@@ -1112,9 +1107,6 @@ public class Main extends Application {
     }
 
     private void mostrarHomeRecepcionista() {
-        new app.AdminRecepcionistaScreen().show(
-                ScreenRouter.getStage(),
-                Sesion.getNombreUsuario()
-        );
+        new app.AdminRecepcionistaScreen().show();
     }
 }

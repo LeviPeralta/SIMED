@@ -44,27 +44,17 @@ public class MedicosEspecialidadesScreen {
         ImageView simed = icon("Logo.png",120,120);
 
         String btn = "-fx-background-color:#D0E1F9; -fx-text-fill:#1F355E; -fx-font-weight:bold; -fx-background-radius:10; -fx-padding:10 20;";
-        String btnEm = "-fx-background-color:#B1361E; -fx-text-fill:white; -fx-font-weight:bold; -fx-background-radius:10; -fx-padding:10 20;";
-
         Button bInicio = new Button("Inicio", icon("Inicio.png",24,24));
         bInicio.setContentDisplay(ContentDisplay.LEFT);
         bInicio.setGraphicTextGap(8);
         bInicio.setStyle(btn);
         bInicio.setMinHeight(40);
-        bInicio.setOnAction(e -> new AdminRecepcionistaScreen().show(ScreenRouter.getStage(), "Recepcionista"));
+        bInicio.setOnAction(e -> {
+            AdminRecepcionistaScreen recepcionista = new AdminRecepcionistaScreen();
+            recepcionista.show();
+        });
 
-        Button bCitas = new Button("Mis citas", icon("miCitas.png",24,24));
-        bCitas.setContentDisplay(ContentDisplay.LEFT);
-        bCitas.setGraphicTextGap(8);
-        bCitas.setStyle(btn);
-        bCitas.setMinHeight(40);
-        bCitas.setOnAction(e -> CitasAgendadasScreen.show(centerContainer, Sesion.getMatricula()));
-
-        Button bEm = new Button("EMERGENCIA");
-        bEm.setStyle(btnEm);
-        bEm.setMinHeight(40);
-
-        HBox middle = new HBox(60, bInicio, bCitas, bEm);
+        HBox middle = new HBox(60, bInicio);
         middle.setAlignment(Pos.CENTER);
         HBox.setHgrow(middle, Priority.ALWAYS);
 
@@ -114,7 +104,10 @@ public class MedicosEspecialidadesScreen {
         // Atrás
         Button btnAtras = new Button("Atrás");
         btnAtras.setStyle("-fx-background-color:#1F355E; -fx-text-fill:white; -fx-background-radius:8; -fx-padding:6 14;");
-        btnAtras.setOnAction(e -> new AdminRecepcionistaScreen().show(ScreenRouter.getStage(), "Recepcionista"));
+        btnAtras.setOnAction(e -> {
+            AdminRecepcionistaScreen recepcionista = new AdminRecepcionistaScreen();
+            recepcionista.show();
+        });
         HBox bottom = new HBox(btnAtras);
         bottom.setAlignment(Pos.CENTER_LEFT);
         bottom.setPadding(new Insets(10,0,0,0));
