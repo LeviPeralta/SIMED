@@ -18,7 +18,7 @@ import java.util.List;
 
 public class DoctoresPorEspecialidadScreen {
 
-    private final StackPane centerContainer = new StackPane();
+    private final BorderPane centerContainer = new BorderPane();
     private HBox paginacionHolder;                 // NUEVO: contenedor que se regenera
     private int currentPage = 1;
     private static final int DOCTORES_POR_PAGINA = 6; // 2 cols × 3 filas
@@ -106,7 +106,7 @@ public class DoctoresPorEspecialidadScreen {
         body.setFillWidth(true);
         VBox.setVgrow(body, Priority.ALWAYS);
 
-        centerContainer.getChildren().setAll(renderPagina(especialidad));
+        centerContainer.setCenter(renderPagina(especialidad));
         centerContainer.setMaxWidth(Double.MAX_VALUE);
         centerContainer.setPrefWidth(Double.MAX_VALUE);
         StackPane.setAlignment(centerContainer, Pos.TOP_CENTER);
@@ -311,7 +311,7 @@ public class DoctoresPorEspecialidadScreen {
     }
 
     private void refresh(String especialidad){          // NUEVO: re-render del grid + barra
-        centerContainer.getChildren().setAll(renderPagina(especialidad));
+        centerContainer.setCenter(renderPagina(especialidad));
         if (paginacionHolder != null) {
             paginacionHolder.getChildren().setAll(crearBarraPaginacion(especialidad));
         }

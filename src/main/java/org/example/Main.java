@@ -255,9 +255,6 @@ public class Main extends Application {
                 showPatientForm(correo, password, matriculaNorm);
             });
 
-
-
-
             formContainer.getChildren().addAll(title, nameBox, emailBox, passwordBox, signUpButton);
 
         }
@@ -1109,4 +1106,6 @@ public class Main extends Application {
     private void mostrarHomeRecepcionista() {
         new app.AdminRecepcionistaScreen().show();
     }
+
+
 }

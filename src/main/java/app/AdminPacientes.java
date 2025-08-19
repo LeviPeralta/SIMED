@@ -12,6 +12,8 @@ import javafx.scene.paint.ImagePattern;
 import javafx.scene.shape.Circle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
+import javafx.stage.Stage;
+import org.example.OracleWalletConnector;
 
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -19,25 +21,26 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
-import javafx.stage.Stage;
-import org.example.OracleWalletConnector;
-
 public class AdminPacientes {
 
     public static class Paciente {
+        private final String matricula;
         private final String nombre;
         private final String apellidos;
         private final String telefono;
         private final String correo;
 
-        public Paciente(String nombre, String apellidos, String telefono, String correo) {
+        public Paciente(String matricula, String nombre, String apellidos, String telefono, String correo) {
+
+            this.matricula = matricula;
             this.nombre    = nombre;
             this.apellidos = apellidos;
             this.telefono  = telefono;
             this.correo    = correo;
         }
 
-        public String getNombreCompleto() { return nombre + apellidos; } // sin espacios
+        public String getMatricula() { return matricula; }
+        public String getNombreCompleto() { return nombre + apellidos; }
         public String getTelefono()       { return telefono; }
         public String getCorreo()         { return correo; }
     }
@@ -67,7 +70,6 @@ public class AdminPacientes {
         btnInicio.setGraphicTextGap(8);
         btnInicio.setStyle(estiloBoton);
         btnInicio.setMinHeight(40);
-        // Regresa a la pantalla de Recepcionista usando ScreenRouter
         btnInicio.setOnAction(e -> {
             AdminRecepcionistaScreen recepcionista = new AdminRecepcionistaScreen();
             recepcionista.show();
@@ -123,7 +125,9 @@ public class AdminPacientes {
         List<Paciente> pacientes = obtenerPacientes();
         int col = 0, row = 0;
         for (Paciente p : pacientes) {
-            grid.add(crearCardPaciente(p), col, row);
+            HBox card = crearCardPaciente(p);
+            grid.add(card, col, row);
+
             if (++col == 2) { // 2 columnas
                 col = 0;
                 row++;
@@ -168,6 +172,19 @@ public class AdminPacientes {
         info.getChildren().addAll(lblNombre, lblTel, lblCorreo);
         card.getChildren().addAll(circle, info);
 
+        card.setOnMouseClicked(e -> {
+            StackPane host = new StackPane();
+            CitasAgendadasScreen.show(host, p.getMatricula()); // PASAMOS LA MATRÍCULA CORRECTA
+            ScreenRouter.setView(host);
+        });
+
+        card.setOnMouseEntered(e -> {
+            card.setStyle("-fx-background-color: #E0E7FF; -fx-background-radius: 15; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, #A6B4CC, 8, 0.5, 0, 0);");
+        });
+        card.setOnMouseExited(e -> {
+            card.setStyle("-fx-background-color: #F8FAFF; -fx-background-radius: 15; -fx-effect: dropshadow(gaussian, transparent, 0, 0, 0, 0);");
+        });
+
         return card;
     }
 
@@ -183,19 +200,20 @@ public class AdminPacientes {
 
     private List<Paciente> obtenerPacientes() {
         List<Paciente> lista = new ArrayList<>();
-        String sql = "SELECT NOMBRE, APELLIDOS, TELEFONO, CORREO FROM ADMIN.PACIENTE";
+        String sql = "SELECT MATRICULA, NOMBRE, APELLIDOS, TELEFONO, CORREO FROM ADMIN.PACIENTE";
 
         try (Connection conn = OracleWalletConnector.getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
 
             while (rs.next()) {
+                String matricula = rs.getString("MATRICULA");
                 String nombre    = rs.getString("NOMBRE");
                 String apellidos = rs.getString("APELLIDOS");
                 String tel       = rs.getString("TELEFONO");
                 String correo    = rs.getString("CORREO");
 
-                lista.add(new Paciente(nombre, apellidos, tel, correo));
+                lista.add(new Paciente(matricula, nombre, apellidos, tel, correo));
             }
         } catch (Exception e) {
             e.printStackTrace();

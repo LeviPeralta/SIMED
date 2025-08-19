@@ -348,7 +348,7 @@ public class HorarioScreen {
         Label icono = new Label("?");
         icono.setStyle("-fx-font-size: 56px; -fx-font-weight: bold; -fx-text-fill: " + AZUL_OSCURO + ";");
 
-        Label titulo = new Label("¿Estás seguro que deseas\n reagendar una cita?");
+        Label titulo = new Label("¿Estás seguro que deseas\n agendar una cita?");
         titulo.setStyle("-fx-font-size: 22px; -fx-font-weight: 800; -fx-text-fill: " + AZUL_OSCURO + ";");
         titulo.setWrapText(true);
         titulo.setAlignment(Pos.CENTER);

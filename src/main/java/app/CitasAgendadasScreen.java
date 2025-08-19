@@ -116,7 +116,7 @@ public class CitasAgendadasScreen {
             // 1) ID_PACIENTE
             Long idPac = null;
             try (PreparedStatement ps = con.prepareStatement(qId)) {
-                ps.setString(1, matricula.trim().toUpperCase());
+                ps.setString(1, matricula.toUpperCase().trim());
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) idPac = rs.getLong(1);
                 }

@@ -3,7 +3,6 @@ package app;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
-import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
@@ -13,9 +12,6 @@ import javafx.scene.text.FontWeight;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-import javafx.scene.layout.StackPane;
-
-
 public class CitasMed {
 
     private static final String TITLE_COLOR = "#1F355E";
@@ -23,13 +19,13 @@ public class CitasMed {
     private static final DateTimeFormatter DIA_FMT  = DateTimeFormatter.ofPattern("EEEE d 'de' MMMM 'del' uuuu");
     private static final DateTimeFormatter HORA_FMT = DateTimeFormatter.ofPattern("h:mm a");
 
-    /** Muestra la pantalla dentro de un contenedor existente (centerContainer). */
-    public static void show(StackPane container, Doctor doctor){
+    /** Muestra la pantalla dentro de un BorderPane existente (centerContainer). */
+    public static void show(BorderPane container, Doctor doctor){
         VBox root = new VBox();
         root.setStyle("-fx-background-color:white;");
         root.setSpacing(10);
 
-        // Breadcrumb (dentro del body, NO top bar)
+        // Breadcrumb
         HBox breadcrumb = new HBox(6);
         breadcrumb.setAlignment(Pos.CENTER_LEFT);
         Label lInicio = link("Inicio", () -> new MedicosEspecialidadesScreen().show(ScreenRouter.getStage()));
@@ -63,7 +59,7 @@ public class CitasMed {
             }
         }
 
-        // Botón Atrás (solo para salir de este contenido)
+        // Botón Atrás
         Button btnAtras = new Button("Atrás");
         btnAtras.setStyle("-fx-background-color:#1F355E; -fx-text-fill:white; -fx-background-radius:8; -fx-padding:6 14;");
         btnAtras.setOnAction(e -> new DoctoresPorEspecialidadScreen().show(ScreenRouter.getStage(), doctor.getEspecialidad()));
@@ -73,12 +69,11 @@ public class CitasMed {
 
         root.getChildren().addAll(breadcrumb, titulo, lista, footerLocal);
 
-        // Pintar SOLO en el centerContainer del padre
-        container.getChildren().setAll(root);
+        // Pinta el contenido en el centro del BorderPane
+        container.setCenter(root);
     }
 
-
-    private static Pane cardCita(Cita c, StackPane container){
+    private static Pane cardCita(Cita c, BorderPane container){
         VBox card = new VBox(8);
         card.setPadding(new Insets(16));
         card.setStyle("-fx-background-color: white; -fx-border-color:" + CARD_BORDER + "; -fx-border-radius:12; -fx-background-radius:12;");
@@ -105,10 +100,8 @@ public class CitasMed {
         reagendar.setOnAction(e -> {
             String esp = (c.getEspecialidad() == null) ? "Medicina General" : c.getEspecialidad();
             Doctor d = new Doctor(c.getIdDoctor(), c.getNombreDoctor(), null, null, esp);
-            // usa la sobrecarga de 5 parámetros:
             HorarioScreen.mostrarHorario(d, esp, container, c.getMatricula(), c.getId());
         });
-
 
         Region spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
         HBox filaBtn = new HBox(spacer, reagendar);
@@ -117,7 +110,6 @@ public class CitasMed {
         return card;
     }
 
-    // Helpers UI
     private static Label bold(String t){
         Label l = new Label(t);
         l.setTextFill(Color.web(TITLE_COLOR));
