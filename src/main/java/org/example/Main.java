@@ -667,13 +667,38 @@ public class Main extends Application {
         tipoUsuarioCombo.setPromptText("Seleccione el tipo de usuario");
         styleTextField(tipoUsuarioCombo);
 
-
         // Aplicar estilos
         for (TextField field : new TextField[]{nombresField,apellidosField, curpField, telefonoField}) {
             styleTextField(field);
         }
         styleTextField(generoCombo);
         styleTextField(fechaNacimiento);
+
+        // << CAMBIO 1: VALIDACIÓN DE CURP EN TIEMPO REAL >>
+        // Define el patrón de una CURP con una expresión regular.
+        // 4 letras, 6 números, 6 letras, y 2 caracteres que pueden ser letra o número.
+        final String CURP_REGEX = "^[A-Z]{4}\\d{6}[A-Z]{6}[A-Z0-9]{2}$";
+
+        curpField.textProperty().addListener((obs, oldValue, newValue) -> {
+            // Convierte a mayúsculas para la validación
+            String curpActual = newValue.toUpperCase();
+
+            // Si el campo tiene texto, validamos
+            if (!curpActual.isEmpty()) {
+                if (curpActual.matches(CURP_REGEX)) {
+                    // Formato correcto: borde verde
+                    curpField.setStyle("-fx-border-color: green; -fx-border-width: 2; " +
+                            "-fx-background-color: #EEEEEE; -fx-background-radius: 5; -fx-border-radius: 5;");
+                } else {
+                    // Formato incorrecto: borde rojo
+                    curpField.setStyle("-fx-border-color: red; -fx-border-width: 2; " +
+                            "-fx-background-color: #EEEEEE; -fx-background-radius: 5; -fx-border-radius: 5;");
+                }
+            } else {
+                // Si está vacío, quita el borde de color
+                styleTextField(curpField);
+            }
+        });
 
         // Imagen y botón
         photoView.setFitWidth(140);
@@ -701,7 +726,7 @@ public class Main extends Application {
             File selectedFile = fileChooser.showOpenDialog(window);
             if (selectedFile != null) {
                 Image image = new Image(selectedFile.toURI().toString());
-                photoView.setImage(image); // Ahora sí debe reconocer photoView
+                photoView.setImage(image);
             }
         });
 
@@ -712,9 +737,16 @@ public class Main extends Application {
             String apellidos = apellidosField.getText().trim();
             LocalDate fecha = fechaNacimiento.getValue();
             String genero = generoCombo.getValue();
-            String curp = curpField.getText().trim();
+            // Convierte a mayúsculas antes de guardar/validar
+            String curp = curpField.getText().trim().toUpperCase();
             String telefono = telefonoField.getText().trim();
             String tipoUsuario = tipoUsuarioCombo.getValue();
+
+            // << CAMBIO 2: VALIDACIÓN DE CURP AL HACER CLIC EN ACEPTAR >>
+            if (!curp.matches(CURP_REGEX)) {
+                showAlert("CURP inválida", "El formato de la CURP es incorrecto.\nDebe tener 18 caracteres y seguir el formato oficial (ej. ABCD123456...).");
+                return; // Detiene el proceso si la CURP es inválida
+            }
 
             if (tipoUsuario == null || nombres.isEmpty() || apellidos.isEmpty() ||
                     fecha == null || genero == null || curp.isEmpty() || telefono.isEmpty()) {
@@ -722,7 +754,7 @@ public class Main extends Application {
                 return;
             }
 
-            // Transacción: primero PACIENTE (con MATRICULA), luego USUARIO enlazado
+            // Si todo es válido, continúa con el registro...
             boolean ok = crearPacienteYUsuarioTransaccional(
                     matriculaNorm, correo, password,
                     nombres, apellidos, fecha, genero,
@@ -732,32 +764,29 @@ public class Main extends Application {
             if (ok) {
                 window.close();
                 Stage currentStage = (Stage) formContainer.getScene().getWindow();
-                new MenuScreen().show(currentStage);
+                // Asumiendo que el usuario es paciente y debe ir al menú principal
+                Sesion.setMatricula(matriculaNorm);
+                Sesion.setNombreUsuario(nombres + " " + apellidos);
+                pantallaDeCarga(this::showNextScreen);
             } else {
                 showAlert("Error", "No se pudo completar el registro.");
             }
         });
 
-        formGrid.add(sectionTitle, 0, 0, 2, 1); // Título ocupa 2 columnas
-
+        // ... (el resto del método para agregar los componentes al GridPane se queda igual) ...
+        formGrid.add(sectionTitle, 0, 0, 2, 1);
         formGrid.add(new Label("Nombre(s)"), 0, 1);
         formGrid.add(nombresField, 0, 2);
-
         formGrid.add(new Label("Apellidos"), 0, 3);
         formGrid.add(apellidosField, 0, 4);
-
         formGrid.add(new Label("Fecha de nacimiento"), 0, 5);
         formGrid.add(fechaNacimiento, 0, 6);
-
         formGrid.add(new Label("Género"), 0, 7);
         formGrid.add(generoCombo, 0, 8);
-
         formGrid.add(new Label("CURP"), 0, 9);
         formGrid.add(curpField, 0, 10);
-
         formGrid.add(new Label("Teléfono"), 0, 11);
         formGrid.add(telefonoField, 0, 12);
-
         formGrid.add(new Label("Tipo de usuario"), 0, 13);
         formGrid.add(tipoUsuarioCombo, 0, 14);
 
@@ -777,10 +806,9 @@ public class Main extends Application {
         window.setScene(scene);
         window.setMinWidth(800);
         window.setMinHeight(650);
-        window.centerOnScreen();       // Centra inicialmente
-        window.setResizable(true);     // Permitimos redimensionar
+        window.centerOnScreen();
+        window.setResizable(true);
 
-        // Centramos de nuevo al maximizar
         window.maximizedProperty().addListener((obs, wasMaximized, isNowMaximized) -> {
             if (isNowMaximized) {
                 window.centerOnScreen();

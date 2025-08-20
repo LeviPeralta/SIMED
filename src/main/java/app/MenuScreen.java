@@ -429,44 +429,47 @@ public class MenuScreen {
     }
 
     private HBox crearBarraPaginacion(int totalPaginas, String especialidad) {
-        HBox barra = new HBox(10);
+        HBox barra = new HBox(12);
+        barra.setAlignment(Pos.CENTER);
 
-        Button primero = new Button("«");
-        Button anterior = new Button("‹");
-        Button siguiente = new Button("›");
-        Button ultimo = new Button("»");
-
-        primero.setOnAction(e -> {
+        // Botones de Primero y Anterior
+        Button primero = miniBtn("«", () -> {
             currentPage = 1;
             renderPaginaDoctores(especialidad);
         });
-
-        anterior.setOnAction(e -> {
+        Button anterior = miniBtn("‹", () -> {
             if (currentPage > 1) {
                 currentPage--;
                 renderPaginaDoctores(especialidad);
             }
         });
 
-        siguiente.setOnAction(e -> {
+        // Contenedor para los números de página ("pills")
+        HBox nums = new HBox(6);
+        nums.setAlignment(Pos.CENTER);
+        for (int i = 1; i <= totalPaginas; i++) {
+            nums.getChildren().add(pill(i, totalPaginas, especialidad));
+        }
+
+        // Botones de Siguiente y Último
+        Button siguiente = miniBtn("›", () -> {
             if (currentPage < totalPaginas) {
                 currentPage++;
                 renderPaginaDoctores(especialidad);
             }
         });
-
-        ultimo.setOnAction(e -> {
+        Button ultimo = miniBtn("»", () -> {
             currentPage = totalPaginas;
             renderPaginaDoctores(especialidad);
         });
 
-        // Página actual
-        Label lblPagina = new Label("Página " + currentPage + " de " + totalPaginas);
-        lblPagina.setFont(Font.font("System", FontWeight.NORMAL, 14));
-        lblPagina.setTextFill(Color.web("#1F355E"));
+        // Deshabilitar botones si es necesario (ej. en la primera o última página)
+        primero.setDisable(currentPage == 1);
+        anterior.setDisable(currentPage == 1);
+        siguiente.setDisable(currentPage == totalPaginas);
+        ultimo.setDisable(currentPage == totalPaginas);
 
-        barra.getChildren().addAll(primero, anterior, lblPagina, siguiente, ultimo);
-        barra.setAlignment(Pos.CENTER);
+        barra.getChildren().addAll(primero, anterior, nums, siguiente, ultimo);
         return barra;
     }
 
@@ -508,4 +511,23 @@ public class MenuScreen {
         return null;
     }
 
+    private Button pill(int n, int totalPaginas, String esp) {
+        Button b = new Button(String.valueOf(n));
+        // Estilo condicional: oscuro si es la página actual, transparente si no lo es
+        b.setStyle(n == currentPage
+                ? "-fx-background-color:#1F355E; -fx-text-fill:white; -fx-background-radius:12; -fx-padding:2 8;"
+                : "-fx-background-color:transparent; -fx-text-fill:#1F355E; -fx-background-radius:12; -fx-padding:2 8;");
+        b.setOnAction(e -> {
+            currentPage = n;
+            renderPaginaDoctores(esp);
+        });
+        return b;
+    }
+
+    private Button miniBtn(String txt, Runnable run) {
+        Button b = new Button(txt);
+        b.setStyle("-fx-background-color:transparent; -fx-text-fill:#1F355E;");
+        b.setOnAction(e -> run.run());
+        return b;
+    }
 }
