@@ -14,7 +14,6 @@ import javafx.scene.text.Font;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
-
 import org.example.OracleWalletConnector;
 
 import java.sql.*;
@@ -41,10 +40,10 @@ public class HorarioScreen {
     private final ToggleGroup grupoHorarios = new ToggleGroup();
     private LocalDateTime fechaHoraSeleccionada;
 
-    private Doctor doctor;            // doctor.getId() -> String, lo convertimos a int
+    private Doctor doctor;
     private String especialidad;
-    private String idPaciente;        // <-- VARCHAR2 en BD
-    private Integer citaAnteriorId = null;   // ⬅️ NUEVO: id de la cita que se va a borrar (si aplica)
+    private String idPaciente;
+    private Integer citaAnteriorId = null;
 
 
     private BorderPane root;
@@ -54,10 +53,12 @@ public class HorarioScreen {
     private LocalDate semanaBase;
     private final Map<LocalDate, Set<LocalTime>> ocupadosPorDia = new HashMap<>();
 
+    // añade este campo en la clase para cerrar el diálogo desde handlers
+    private Stage dialogRef;
+
     private HorarioScreen() {}
 
     /** Punto de entrada */
-    // 1) Crear cita (SIN id de cita anterior)
     public static void mostrarHorario(Doctor doctor,
                                       String especialidad,
                                       javafx.scene.layout.Pane centerContainer,
@@ -71,8 +72,6 @@ public class HorarioScreen {
         hs.render();
     }
 
-    // 2) Reagendar (CON id de cita anterior)
-//    OJO: mismo orden que usas al llamar desde CitasMed
     public static void mostrarHorario(Doctor doctor,
                                       String especialidad,
                                       javafx.scene.layout.Pane centerContainer,
@@ -110,8 +109,8 @@ public class HorarioScreen {
 
     private Node construirHeader() {
         VBox box = new VBox(8);
-        box.setAlignment(Pos.CENTER_LEFT);            // ← izquierda
-        box.setPadding(new Insets(0, 0, 0, 12));      // (opcional) pequeño margen izquierdo
+        box.setAlignment(Pos.CENTER_LEFT);
+        box.setPadding(new Insets(0, 0, 0, 12));
 
         Label breadcrumb = new Label("Especialidad: " + especialidad + "  >  Doctor: " + doctor.getNombre());
         breadcrumb.setFont(Font.font(15));
@@ -134,6 +133,12 @@ public class HorarioScreen {
         styleBotonSemana(btnPrev);
         styleBotonSemana(btnNext);
 
+        // === INICIO DE CAMBIOS ===
+        // Deshabilitar botón si la semana actual ya es la de hoy
+        LocalDate lunesDeHoy = obtenerLunes(LocalDate.now());
+        btnPrev.setDisable(semanaBase.isEqual(lunesDeHoy) || semanaBase.isBefore(lunesDeHoy));
+        // === FIN DE CAMBIOS ===
+
         btnPrev.setOnAction(e -> { semanaBase = semanaBase.minusWeeks(1); recargarOcupadosYRefrescar(); });
         btnNext.setOnAction(e -> { semanaBase = semanaBase.plusWeeks(1); recargarOcupadosYRefrescar(); });
 
@@ -142,6 +147,21 @@ public class HorarioScreen {
             @Override public String toString(LocalDate d) { return d == null ? "" : fmt.format(d); }
             @Override public LocalDate fromString(String s) { return (s == null || s.isEmpty()) ? null : LocalDate.parse(s, fmt); }
         });
+
+        // === INICIO DE CAMBIOS ===
+        // Deshabilitar fechas pasadas en el DatePicker
+        dp.setDayCellFactory(picker -> new DateCell() {
+            @Override
+            public void updateItem(LocalDate date, boolean empty) {
+                super.updateItem(date, empty);
+                if (date.isBefore(LocalDate.now())) {
+                    setDisable(true);
+                    setStyle("-fx-background-color: #ffc0cb;"); // Color rosa para indicar no disponible
+                }
+            }
+        });
+        // === FIN DE CAMBIOS ===
+
         dp.setOnAction(e -> {
             if (dp.getValue() != null) {
                 semanaBase = obtenerLunes(dp.getValue());
@@ -168,6 +188,11 @@ public class HorarioScreen {
         List<LocalDate> dias = diasDeSemana(semanaBase);
         List<String> nombres = Arrays.asList("Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom");
 
+        // === INICIO DE CAMBIOS ===
+        // NUEVO: Obtenemos la fecha y hora actual UNA SOLA VEZ para optimizar.
+        final LocalDateTime ahora = LocalDateTime.now();
+        // === FIN DE CAMBIOS ===
+
         // encabezados
         tabla.add(makeHeader("Hora"), 0, 0);
         for (int c = 0; c < 7; c++) {
@@ -189,7 +214,10 @@ public class HorarioScreen {
 
             for (int c = 0; c < 7; c++) {
                 LocalDate date = dias.get(c);
-                Node celda = crearCelda(date, t);
+                // === INICIO DE CAMBIOS ===
+                // NUEVO: Pasamos 'ahora' como argumento
+                Node celda = crearCelda(date, t, ahora);
+                // === FIN DE CAMBIOS ===
                 tabla.add(celda, c + 1, row);
                 GridPane.setHgrow(celda, Priority.ALWAYS);
             }
@@ -231,7 +259,7 @@ public class HorarioScreen {
 
     /* ===================== CELDAS ===================== */
 
-    private Node crearCelda(LocalDate fecha, LocalTime hora) {
+    private Node crearCelda(LocalDate fecha, LocalTime hora, LocalDateTime ahora) {
         ToggleButton btn = new ToggleButton("");
         btn.setToggleGroup(grupoHorarios);
         btn.setUserData(LocalDateTime.of(fecha, hora));
@@ -245,17 +273,28 @@ public class HorarioScreen {
         Tooltip tip = new Tooltip("Hora: " + fHora.format(hora) + "\nFecha: " + fFecha.format(fecha));
         btn.setTooltip(tip);
 
-        if (estaOcupado(fecha, hora)) {
-            // Texto tenue
-            btn.setText("Ocupado");
-            btn.setTextFill(Color.web("#A0A0A0"));
-            // Color de fondo del que enviaste (extraído como HEX)
-            String colorOcupado = "#6B85A3"; // este es el tono aproximado de la imagen
-            btn.setStyle("-fx-background-color: " + colorOcupado + "; -fx-background-radius: 8;");
-            btn.setDisable(true);
+        // === INICIO DE CAMBIOS ===
+        LocalDateTime fechaHoraCelda = LocalDateTime.of(fecha, hora);
 
-            tip.setText(tip.getText() + "\nEstado: Ocupado");
+        // Condición 1: El horario está ocupado por otra cita.
+        boolean ocupado = estaOcupado(fecha, hora);
+        // Condición 2: El horario ya pasó.
+        boolean esPasado = fechaHoraCelda.isBefore(ahora);
+
+        if (ocupado || esPasado) {
+            if (ocupado) {
+                btn.setText("Ocupado");
+                tip.setText(tip.getText() + "\nEstado: Ocupado");
+            } else {
+                // Es pasado pero no estaba ocupado, no mostramos texto.
+                tip.setText(tip.getText() + "\nEstado: No disponible");
+            }
+            // Para ambos casos, deshabilitamos el botón con un estilo gris.
+            btn.setStyle("-fx-background-color: #D1D5DB; -fx-background-radius: 8;");
+            btn.setDisable(true);
+            // === FIN DE CAMBIOS ===
         } else {
+            // Lógica existente para botones disponibles
             btn.addEventFilter(MouseEvent.MOUSE_ENTERED, e -> {
                 if (!btn.isSelected()) {
                     btn.setStyle("-fx-background-color: #DDE6F3; -fx-text-fill: " + COLOR_TEXTO_NORMAL + "; -fx-background-radius: 8;");
@@ -290,7 +329,6 @@ public class HorarioScreen {
             return;
         }
 
-        // YA NO parseamos a int. Usamos el ID del doctor tal cual (VARCHAR2 en CITA)
         String idMedico = doctor.getId();
 
         mostrarPopupConfirmacion(
@@ -302,7 +340,6 @@ public class HorarioScreen {
 
 
     private void insertarCita(String matriculaSesion, String idMedicoVarchar, Timestamp fechaHora) throws SQLException {
-        // Resolver ID_PACIENTE (NUMBER) desde la matrícula
         Long idPacienteNumber = obtenerIdPacientePorMatricula(matriculaSesion);
         if (idPacienteNumber == null) {
             throw new SQLException("No se encontró la matrícula del paciente.");
@@ -313,18 +350,15 @@ public class HorarioScreen {
 
         try (Connection con = OracleWalletConnector.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setLong(1, idPacienteNumber);   // NUMBER
-            ps.setString(2, idMedicoVarchar);  // VARCHAR2(20)
-            ps.setTimestamp(3, fechaHora);     // TIMESTAMP
+            ps.setLong(1, idPacienteNumber);
+            ps.setString(2, idMedicoVarchar);
+            ps.setTimestamp(3, fechaHora);
             ps.executeUpdate();
         }
     }
 
-
-
     /* ===================== POPUPS ===================== */
 
-    // Reemplaza TODO tu método mostrarPopupConfirmacion por esto:
     private void mostrarPopupConfirmacion(String tituloIgnorado, String mensajeIgnorado, String idMedico) {
         GaussianBlur blur = new GaussianBlur(14);
         root.setEffect(blur);
@@ -355,7 +389,6 @@ public class HorarioScreen {
         sub.setWrapText(true);
         sub.setAlignment(Pos.CENTER);
 
-        // Botón cancelar (izquierda)
         Button btnCancelar = new Button("Cancelar");
         btnCancelar.setStyle(
                 "-fx-background-color: #EEF2F7; -fx-text-fill: " + AZUL_OSCURO + ";" +
@@ -370,7 +403,6 @@ public class HorarioScreen {
                         "-fx-font-weight: bold; -fx-background-radius: 12; -fx-padding: 10 18;"
         ));
 
-        // Botón aceptar (derecha)
         Button btnAceptar = new Button("Aceptar");
         btnAceptar.setStyle(
                 "-fx-background-color: " + AZUL_OSCURO + "; -fx-text-fill: white;" +
@@ -401,7 +433,6 @@ public class HorarioScreen {
             }
         });
 
-        // Botonera en orillas
         BorderPane bottom = new BorderPane();
         bottom.setLeft(btnCancelar);
         bottom.setRight(btnAceptar);
@@ -431,8 +462,6 @@ public class HorarioScreen {
         dialog.show();
     }
 
-    // añade este campo en la clase para cerrar el diálogo desde handlers
-    private Stage dialogRef;
 
     private void mostrarPopupExito(String tituloIgnorado, String mensajeIgnorado) {
         GaussianBlur blur = new GaussianBlur(14);
@@ -450,7 +479,6 @@ public class HorarioScreen {
                 .format(DateTimeFormatter.ofPattern("HH:mm", esMX));
         String subtitulo = "La cita será el " + fechaLarga + " a las " + hora24 + " horas";
 
-        // Icono circular con check
         Circle circle = new Circle(36);
         circle.setFill(Color.TRANSPARENT);
         circle.setStroke(Color.web(AZUL_OSCURO));
@@ -477,8 +505,7 @@ public class HorarioScreen {
         btnOk.setOnAction(e -> {
             dialogRef.close();
             root.setEffect(null);
-            // En vez de solo recargar la tabla, mostramos Mis Citas:
-            CitasAgendadasScreen.show(hostContainer, idPaciente);  // idPaciente = matrícula guardada en sesión
+            CitasAgendadasScreen.show(hostContainer, idPaciente);
         });
 
 
@@ -486,7 +513,7 @@ public class HorarioScreen {
         card.setPadding(new Insets(30));
         card.setAlignment(Pos.CENTER);
         card.setStyle(
-                "-fx-background-color: " + AZUL_SUAVE + "; -fx-background-radius: 16;" + // fondo claro como el mock
+                "-fx-background-color: " + AZUL_SUAVE + "; -fx-background-radius: 16;" +
                         "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 16, 0, 0, 4);"
         );
         card.setMinWidth(460);
@@ -532,13 +559,11 @@ public class HorarioScreen {
         LocalDate desde = dias.get(0);
         LocalDate hasta = dias.get(6);
 
-        // Con CITA: la columna sí es FECHA_HORA
         final String sqlCitas =
                 "SELECT FECHA_HORA FROM CITA " +
                         "WHERE ID_MEDICO = ? " +
                         "AND TRUNC(CAST(FECHA_HORA AS DATE)) BETWEEN ? AND ?";
 
-        // Con HORARIO_MEDICO: expandimos intervalos [HORA_INICIO, HORA_FIN) en pasos de 30 min
         final String sqlBloques =
                 "SELECT DIA_SEMANA, HORA_INICIO, HORA_FIN " +
                         "FROM HORARIO_MEDICO " +
@@ -547,9 +572,8 @@ public class HorarioScreen {
 
         try (Connection con = OracleWalletConnector.getConnection()) {
 
-            // 1) Citas reales
             try (PreparedStatement ps = con.prepareStatement(sqlCitas)) {
-                ps.setString(1, doctor.getId());                // ahora es VARCHAR
+                ps.setString(1, doctor.getId());
                 ps.setDate(2, java.sql.Date.valueOf(desde));
                 ps.setDate(3, java.sql.Date.valueOf(hasta));
                 try (ResultSet rs = ps.executeQuery()) {
@@ -560,9 +584,8 @@ public class HorarioScreen {
                 }
             }
 
-            // 2) Bloqueos/agenda base por intervalos
             try (PreparedStatement ps = con.prepareStatement(sqlBloques)) {
-                ps.setString(1, doctor.getId());                // ahora es VARCHAR
+                ps.setString(1, doctor.getId());
                 ps.setDate(2, java.sql.Date.valueOf(desde));
                 ps.setDate(3, java.sql.Date.valueOf(hasta));
                 try (ResultSet rs = ps.executeQuery()) {
@@ -642,7 +665,7 @@ public class HorarioScreen {
 
     private Long obtenerIdPacientePorMatricula(String matricula) throws SQLException {
         if (matricula == null || matricula.isBlank()) {
-            return null; // devolvemos null y que el caller avise al usuario
+            return null;
         }
         final String sql = "SELECT ID_PACIENTE FROM ADMIN.PACIENTE WHERE UPPER(MATRICULA) = ?";
         try (Connection con = OracleWalletConnector.getConnection();
@@ -655,20 +678,17 @@ public class HorarioScreen {
         return null;
     }
 
-
     private void styleBotonSemana(Button b) {
-        // Azul oscuro de tu paleta + texto blanco + bordes redondeados
         b.setPadding(new Insets(8, 16, 8, 16));
         b.setStyle(
-                "-fx-background-color: " + COLOR_SELECCION + ";" +   // #1F355E
+                "-fx-background-color: " + COLOR_SELECCION + ";" +
                         "-fx-text-fill: white;" +
                         "-fx-font-weight: bold;" +
                         "-fx-background-radius: 10;" +
-                        "-fx-border-color: " + COLOR_BORDE_AZUL + ";" +      // #1F355E
+                        "-fx-border-color: " + COLOR_BORDE_AZUL + ";" +
                         "-fx-border-radius: 10;"
         );
 
-        // hover: un azul un poco más claro
         b.setOnMouseEntered(e -> b.setStyle(
                 "-fx-background-color: #2D4A80;" +
                         "-fx-text-fill: white;" +
@@ -686,5 +706,4 @@ public class HorarioScreen {
                         "-fx-border-radius: 10;"
         ));
     }
-
 }
