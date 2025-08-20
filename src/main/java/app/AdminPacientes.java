@@ -95,17 +95,7 @@ public class AdminPacientes {
 
         Button btnSalir = new Button("", createIcon("Close.png", 24, 24));
         btnSalir.setStyle("-fx-background-color: #1F355E;");
-        btnSalir.setOnAction(e -> {
-            Stage currentStage = (Stage) btnSalir.getScene().getWindow();
-            currentStage.close();
-
-            Stage primaryStage = new Stage();
-            try {
-                new org.example.Main().start(primaryStage);
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
-        });
+        btnSalir.setOnAction(e -> new org.example.Main().start(ScreenRouter.getStage()));
 
         Region spacerL = new Region();
         Region spacerR = new Region();

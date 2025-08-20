@@ -102,7 +102,7 @@ public class AdminRecepcionistaScreen {
 
         Button btnSalir = new Button("", createIcon("Close.png", 24, 24));
         btnSalir.setStyle("-fx-background-color: #1F355E;");
-        btnSalir.setOnAction(e -> ScreenRouter.getStage().close());
+        btnSalir.setOnAction(e -> new org.example.Main().start(ScreenRouter.getStage()));
 
         Region spacerL = new Region();
         Region spacerR = new Region();
