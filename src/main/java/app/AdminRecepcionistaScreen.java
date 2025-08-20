@@ -63,11 +63,6 @@ public class AdminRecepcionistaScreen {
                 "-fx-background-radius: 10; " +
                 "-fx-padding: 10 20 10 20;";
 
-        String estiloEmergencia = "-fx-background-color: #B1361E; " +
-                "-fx-text-fill: white; -fx-font-weight: bold; " +
-                "-fx-background-radius: 10; " +
-                "-fx-padding: 10 20 10 20;";
-
         Button btnInicio = new Button("Inicio", createIcon("Inicio.png", 24, 24));
         btnInicio.setContentDisplay(ContentDisplay.LEFT);
         btnInicio.setGraphicTextGap(8);
@@ -76,12 +71,7 @@ public class AdminRecepcionistaScreen {
         // Si inicio recarga la misma pantalla
         btnInicio.setOnAction(e -> this.show());
 
-        Button btnEmergencia = new Button("EMERGENCIA");
-        btnEmergencia.setStyle(estiloEmergencia);
-        btnEmergencia.setFont(Font.font("System", FontWeight.BOLD, 14));
-        btnEmergencia.setMinHeight(40);
-
-        HBox centerButtons = new HBox(btnInicio, btnEmergencia);
+        HBox centerButtons = new HBox(btnInicio);
         centerButtons.setSpacing(60);
         centerButtons.setAlignment(Pos.CENTER);
         centerButtons.setMaxWidth(Double.MAX_VALUE);

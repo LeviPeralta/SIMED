@@ -163,9 +163,13 @@ public class AdminPacientes {
         card.getChildren().addAll(circle, info);
 
         card.setOnMouseClicked(e -> {
-            StackPane host = new StackPane();
-            CitasAgendadasScreen.show(host, p.getMatricula()); // PASAMOS LA MATRÍCULA CORRECTA
-            ScreenRouter.setView(host);
+            Stage stage = ScreenRouter.getStage();
+            StackPane newRoot = new StackPane();
+            CitasAgendadasScreen.show(newRoot, p.getMatricula());
+
+            if (stage != null && stage.getScene() != null) {
+                stage.getScene().setRoot(newRoot);
+            }
         });
 
         card.setOnMouseEntered(e -> {

@@ -50,6 +50,7 @@ public class DoctoresPorEspecialidadScreen {
         ImageView simed = icon("Logo.png",100,100);
 
         String btn = "-fx-background-color:#D0E1F9; -fx-text-fill:#1F355E; -fx-font-weight:bold; -fx-background-radius:10; -fx-padding:8 16;";
+        String btnEm = "-fx-background-color:#B1361E; -fx-text-fill:white; -fx-font-weight:bold; -fx-background-radius:10; -fx-padding:8 16;";
 
         Button bInicio = new Button("Inicio", icon("Inicio.png",22,22));
         bInicio.setContentDisplay(ContentDisplay.LEFT);
@@ -214,7 +215,7 @@ public class DoctoresPorEspecialidadScreen {
 
         Button btnCitas = new Button("Ver Citas");
         btnCitas.setStyle("-fx-background-color:#D0E1F9; -fx-text-fill:#1F355E; -fx-background-radius:8; -fx-padding:6 10;");
-        btnCitas.setOnAction(e -> CitasMed.show(centerContainer, d));   // NUEVO: abre la nueva pantalla
+        btnCitas.setOnAction(e -> new CitasMed().show(ScreenRouter.getStage(), d));
 
         HBox actions = new HBox(10, btnHorario, btnCitas);
         actions.setAlignment(Pos.CENTER_LEFT);

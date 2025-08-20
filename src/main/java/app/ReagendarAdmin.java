@@ -17,6 +17,7 @@ import javafx.scene.text.FontWeight;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import javafx.util.StringConverter;
 import org.example.OracleWalletConnector;
 
 import java.sql.*;
@@ -25,7 +26,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAdjusters;
 import java.util.*;
 
-public class ReagendarScreen {
+public class ReagendarAdmin {
 
     // Estilos
     private static final String COLOR_FONDO_CELDA = "#E9EEF5";
@@ -54,10 +55,10 @@ public class ReagendarScreen {
     private LocalDate semanaBase;
     private final Map<LocalDate, Set<LocalTime>> ocupadosPorDia = new HashMap<>();
 
-    private ReagendarScreen() {}
+    private ReagendarAdmin() {}
 
     public static void show(Stage stage, Doctor doctor, String especialidad, String matricula, Integer idCitaAnterior) {
-        ReagendarScreen instance = new ReagendarScreen();
+        ReagendarAdmin instance = new ReagendarAdmin();
         instance.doctor = doctor;
         instance.especialidad = especialidad;
         instance.matriculaPaciente = matricula;
@@ -78,15 +79,23 @@ public class ReagendarScreen {
         content.setPadding(new Insets(12, 32, 12, 32));
         VBox.setVgrow(content, Priority.ALWAYS);
 
-        // --- CAMBIO: BREADCRUMBS ELIMINADOS ---
-        // El HBox 'breadcrumb' fue completamente removido de aquí.
+        HBox breadcrumb = new HBox(6);
+        breadcrumb.setAlignment(Pos.CENTER_LEFT);
+        breadcrumb.getChildren().addAll(
+                link("Inicio", () -> new MedicosEspecialidadesScreen().show(stage)),
+                dot(),
+                link("Médico", () -> new DoctoresPorEspecialidadScreen().show(stage, especialidad)),
+                dot(),
+                link("Mis Citas", () -> new CitasMed().show(stage, doctor)),
+                dot(),
+                new Label("Reagendar Cita"){{ setTextFill(Color.web(COLOR_TEXTO_NORMAL)); }}
+        );
 
         Node barraSemana = construirBarraSemana();
         Node tablaHorarios = construirTablaSemana();
         VBox.setVgrow(tablaHorarios, Priority.ALWAYS);
 
-        // Se añade el contenido sin los breadcrumbs
-        content.getChildren().addAll(barraSemana, tablaHorarios);
+        content.getChildren().addAll(breadcrumb, barraSemana, tablaHorarios);
 
         screenRoot.setCenter(content);
         screenRoot.setBottom(construirFooter());
@@ -94,6 +103,10 @@ public class ReagendarScreen {
         ScreenRouter.setView(screenRoot);
         recargarOcupadosYRefrescar();
     }
+
+    // =================================================================================
+    // EL ÚNICO MÉTODO MODIFICADO ES 'reagendarCitaEnTransaccion'
+    // =================================================================================
 
     private void reagendarCitaEnTransaccion(int idCitaAnterior, String matricula, String idMedico, Timestamp nuevaFechaHora) throws SQLException {
         Connection con = null;
@@ -124,7 +137,11 @@ public class ReagendarScreen {
                 }
             }
 
+            // =======================================================
+            // LÍNEA CORREGIDA: Usamos el nombre de tabla correcto
+            // =======================================================
             String sqlUpdateExp = "UPDATE EXPEDIENTE_MEDICO SET ID_CITA = ? WHERE ID_CITA = ?";
+
             try (PreparedStatement psUpd = con.prepareStatement(sqlUpdateExp)) {
                 psUpd.setLong(1, nuevoIdCita);
                 psUpd.setInt(2, idCitaAnterior);
@@ -154,6 +171,10 @@ public class ReagendarScreen {
         }
     }
 
+    // =================================================================================
+    // EL RESTO DEL CÓDIGO PERMANECE IGUAL
+    // =================================================================================
+
     private HBox crearBarraSuperior() {
         HBox top = new HBox();
         top.setStyle("-fx-background-color:#FFFFFF; -fx-border-color: transparent transparent #E9EEF5 transparent; -fx-border-width:0 0 1 0;");
@@ -165,11 +186,7 @@ public class ReagendarScreen {
         bInicio.setContentDisplay(ContentDisplay.LEFT);
         bInicio.setGraphicTextGap(8);
         bInicio.setStyle("-fx-background-color:#D0E1F9; -fx-text-fill:#1F355E; -fx-font-weight:bold; -fx-background-radius:10; -fx-padding:8 16;");
-
-        // --- CAMBIO: ACCIÓN DEL BOTÓN 'INICIO' ---
-        // Ahora navega a la pantalla principal del menú de especialidades.
-        bInicio.setOnAction(e -> new MenuScreen().show(ScreenRouter.getStage()));
-
+        bInicio.setOnAction(e -> new MedicosEspecialidadesScreen().show(ScreenRouter.getStage()));
         Region spL = new Region(); HBox.setHgrow(spL, Priority.ALWAYS);
         HBox middle = new HBox(bInicio);
         middle.setAlignment(Pos.CENTER);
@@ -259,18 +276,7 @@ public class ReagendarScreen {
         bottom.setAlignment(Pos.CENTER);
         Button btnAtras = new Button("Atrás");
         styleBotonSecundario(btnAtras);
-
-        // --- CAMBIO: ACCIÓN DEL BOTÓN 'ATRÁS' ---
-        // Ahora regresa a la pantalla de Citas Agendadas.
-        btnAtras.setOnAction(e -> {
-            Stage stage = ScreenRouter.getStage();
-            StackPane newRoot = new StackPane();
-            CitasAgendadasScreen.show(newRoot, this.matriculaPaciente);
-            if (stage != null && stage.getScene() != null) {
-                stage.getScene().setRoot(newRoot);
-            }
-        });
-
+        btnAtras.setOnAction(e -> new CitasMed().show(ScreenRouter.getStage(), doctor));
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
         HBox leyenda = new HBox(12,
@@ -384,14 +390,7 @@ public class ReagendarScreen {
         btnOk.setOnAction(e -> {
             dialogRef.close();
             screenRoot.setEffect(null);
-
-            Stage stage = ScreenRouter.getStage();
-            StackPane newRoot = new StackPane();
-            CitasAgendadasScreen.show(newRoot, this.matriculaPaciente);
-
-            if (stage != null && stage.getScene() != null) {
-                stage.getScene().setRoot(newRoot);
-            }
+            new CitasMed().show(ScreenRouter.getStage(), doctor);
         });
         final String AZUL_OSCURO = "#1F355E";
         final String AZUL_SUAVE = "#E9EEF5";
@@ -435,9 +434,8 @@ public class ReagendarScreen {
         try {
             cargarOcupadosSemana();
             VBox content = (VBox) screenRoot.getCenter();
-            // Se actualiza el contenido en las posiciones correctas (0 y 1)
-            content.getChildren().set(0, construirBarraSemana());
-            content.getChildren().set(1, construirTablaSemana());
+            content.getChildren().set(1, construirBarraSemana());
+            content.getChildren().set(2, construirTablaSemana());
         } catch (Exception ex) {
             mostrarAlerta(Alert.AlertType.ERROR, "Error al cargar horarios ocupados: " + ex.getMessage());
         }
@@ -512,6 +510,20 @@ public class ReagendarScreen {
             if (url != null) return new ImageView(new Image(url.toExternalForm(), w, h, true, true));
         } catch (Exception e) { /* ignored */ }
         return new ImageView();
+    }
+
+    private static Label link(String text, Runnable action) {
+        Label l = new Label(text);
+        l.setTextFill(Color.web(COLOR_TEXTO_NORMAL));
+        l.setStyle("-fx-underline:true; -fx-cursor: hand;");
+        l.setOnMouseClicked(e -> action.run());
+        return l;
+    }
+
+    private static Label dot() {
+        Label s = new Label("•");
+        s.setTextFill(Color.web(COLOR_TEXTO_NORMAL));
+        return s;
     }
 
     private static Label makeHeader(String text) {

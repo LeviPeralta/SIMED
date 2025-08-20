@@ -977,14 +977,10 @@ public class Main extends Application {
 
         String selectPacienteId = "SELECT ADMIN.PACIENTE_SEQ.CURRVAL AS ID_PACIENTE FROM dual";
 
-        String correoInstitucional = matriculaNorm + "@utez.edu.mx";
-        System.out.println(correoInstitucional);
-
         String insertUsuario =
                 "INSERT INTO ADMIN.USUARIO " +
                         "(ID_USUARIO, CORREO, CONTRASENA, ROL, ID_REFERENCIA, TIPO_USUARIO) " +
                         "VALUES (ADMIN.USUARIO_SEQ.NEXTVAL, ?, ?, ?, ?, ?)";
-
 
         Connection conn = null;
 
@@ -999,12 +995,12 @@ public class Main extends Application {
                 psP.setString(3, genero);
                 if (fecha != null) psP.setDate(4, java.sql.Date.valueOf(fecha));
                 else psP.setNull(4, Types.DATE);
-                psP.setString(5, correo);
+                psP.setString(5, correo); // Usa el correo correcto: "20243ds044@utez.edu.mx"
                 psP.setString(6, telefono);
-                psP.setString(7, null);       // DIRECCION (si aún no la manejas)
+                psP.setString(7, null);
                 psP.setString(8, curp);
                 psP.setString(9, tipoUsuario);
-                psP.setString(10, matriculaNorm); // <-- MATRÍCULA AQUÍ
+                psP.setString(10, matriculaNorm);
                 psP.executeUpdate();
             }
 
@@ -1018,10 +1014,11 @@ public class Main extends Application {
 
             // 3) Insert USUARIO enlazado
             try (PreparedStatement psU = conn.prepareStatement(insertUsuario)) {
-                psU.setString(1, correoInstitucional);
+                // LA CORRECCIÓN CLAVE: Usamos el parámetro 'correo' que ya vino correcto desde el principio
+                psU.setString(1, correo); // Inserta el mismo correo: "20243ds044@utez.edu.mx"
                 psU.setString(2, password);
                 psU.setString(3, "paciente");
-                psU.setLong(4, idPaciente);      // ID_REFERENCIA -> PACIENTE
+                psU.setLong(4, idPaciente);      // ID_REFERENCIA -> PACIENTE (Aquí va el 114)
                 psU.setString(5, tipoUsuario);
                 psU.executeUpdate();
             }
@@ -1031,7 +1028,6 @@ public class Main extends Application {
 
         } catch (SQLException e) {
             if (conn != null) try { conn.rollback(); } catch (SQLException ignore) {}
-            // Mensajes amigables por errores típicos
             if (e.getErrorCode() == 1) { // ORA-00001 unique constraint
                 showAlert("Duplicado", "El correo o la matrícula ya están registrados.");
             } else {
