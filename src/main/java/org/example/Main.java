@@ -221,7 +221,7 @@ public class Main extends Application {
             passwordField.setPromptText("••••••••");
             styleTextField(passwordField);
 
-            VBox nameBox = createLabeledField("Matrícula", matriculaField);
+            VBox nameBox = createLabeledField("Matrícula/Número de empleado", matriculaField);
             VBox emailBox = createLabeledField("Contraseña", passwordField2);
             VBox passwordBox = createLabeledField("Confirme su contraseña", passwordField);
 

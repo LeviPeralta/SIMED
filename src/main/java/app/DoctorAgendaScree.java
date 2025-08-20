@@ -228,11 +228,6 @@ public class DoctorAgendaScree {
                 "-fx-background-radius: 10; " +
                 "-fx-padding: 10 20 10 20;";
 
-        String estiloEmergencia = "-fx-background-color: #B1361E; " +
-                "-fx-text-fill: white; -fx-font-weight: bold; " +
-                "-fx-background-radius: 10; " +
-                "-fx-padding: 10 20 10 20;";
-
         Button btnInicio = new Button("Inicio", icon("Inicio.png", 24, 24));
         btnInicio.setContentDisplay(ContentDisplay.LEFT);
         btnInicio.setGraphicTextGap(8);
@@ -247,14 +242,7 @@ public class DoctorAgendaScree {
             javafx.application.Platform.runLater(() -> st.setMaximized(true));
         });
 
-
-
-
-        Button btnEmergencia = new Button("EMERGENCIA");
-        btnEmergencia.setStyle(estiloEmergencia);
-        btnEmergencia.setMinHeight(40);
-
-        HBox centerButtons = new HBox(btnInicio, btnEmergencia);
+        HBox centerButtons = new HBox(btnInicio);
         centerButtons.setSpacing(60);
         centerButtons.setAlignment(Pos.CENTER);
         centerButtons.setMaxWidth(Double.MAX_VALUE);

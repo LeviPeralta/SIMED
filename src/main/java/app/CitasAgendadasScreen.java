@@ -25,6 +25,7 @@ public class CitasAgendadasScreen {
     private static final String AZUL_SUAVE  = "#E9EEF5";
     private static final String BORDE       = "#0F274A";
 
+
     public static void show(Pane hostContainer, String matriculaSesion) {
         VBox root = new VBox(18);
         root.setPadding(new Insets(16, 24, 24, 24));
@@ -41,7 +42,6 @@ public class CitasAgendadasScreen {
         dot.setStyle("-fx-text-fill: " + AZUL_OSCURO + ";");
         t2.setStyle("-fx-text-fill: " + AZUL_OSCURO + ";");
 
-// 👉 Navegar a MenuScreen al hacer click
         t1.setCursor(Cursor.HAND);
         t1.setOnMouseClicked(e -> {
             Stage stage = (Stage) hostContainer.getScene().getWindow();
@@ -78,9 +78,7 @@ public class CitasAgendadasScreen {
         scroller.setPannable(true); // permite arrastrar con el mouse/trackpad
         scroller.setStyle("-fx-background-color: transparent; -fx-background-insets: 0; -fx-padding: 0;");
 
-// Aplica estilo super minimal a la barra
         applyMinimalScrollBar(scroller);
-
         hostContainer.getChildren().setAll(scroller);
 
     }
@@ -108,7 +106,6 @@ public class CitasAgendadasScreen {
                         "ORDER BY c.FECHA_HORA DESC";
 
         try (Connection con = OracleWalletConnector.getConnection()) {
-            // (opcional) asegura el esquema por sesión
             try (Statement st = con.createStatement()) {
                 st.execute("ALTER SESSION SET CURRENT_SCHEMA=" + OWNER);
             }
@@ -137,7 +134,8 @@ public class CitasAgendadasScreen {
                         Timestamp ts = rs.getTimestamp("FECHA_HORA");
                         String medico = rs.getString("MEDICO");
                         String consultorio = rs.getString("CONSULTORIO"); // nombre del consultorio
-                        lista.getChildren().add(tarjetaCita(idCita, ts, medico, consultorio));
+                        lista.getChildren().add(tarjetaCita(idCita, idPac, ts, medico, consultorio, lista));
+
                     }
                     if (!hay) lista.getChildren().add(mensaje("No tienes citas agendadas."));
                 }
@@ -154,8 +152,13 @@ public class CitasAgendadasScreen {
         return l;
     }
 
-    private static Node tarjetaCita(long idCita, Timestamp ts, String medico, String consultorio) {
-        // Formateo
+    private static Node tarjetaCita(long idCita,
+                                    long idPaciente,
+                                    Timestamp ts,
+                                    String medico,
+                                    String consultorio,
+                                    Pane hostContainer) {
+        // Formateo de fecha/hora
         Locale esMX = new Locale("es", "MX");
         DateTimeFormatter fDia = DateTimeFormatter.ofPattern("EEEE d 'de' MMMM 'del' yyyy", esMX);
         DateTimeFormatter fHora = DateTimeFormatter.ofPattern("h:mm a", esMX);
@@ -177,13 +180,37 @@ public class CitasAgendadasScreen {
         // Botones
         Button btnCancelar = new Button("Cancelar cita");
         btnCancelar.setStyle("-fx-background-color: " + AZUL_SUAVE + "; -fx-text-fill: " + AZUL_OSCURO + "; -fx-background-radius: 8; -fx-padding: 8 12;");
+        btnCancelar.setOnAction(e -> {
+            cancelarCita(idCita, (VBox) hostContainer, String.valueOf(idPaciente));
+        });
+
         Button btnReagendar = new Button("Reagendar cita");
         btnReagendar.setStyle("-fx-background-color: " + AZUL_SUAVE + "; -fx-text-fill: " + AZUL_OSCURO + "; -fx-background-radius: 8; -fx-padding: 8 12;");
+
+
+        btnReagendar.setOnAction(e -> {
+            Doctor doc = obtenerDoctorPorCita(idCita);
+
+            if (doc == null) {
+                System.err.println("No se encontró el doctor para la cita " + idCita);
+                return;
+            }
+
+            ReagendarScreen.mostrarHorario(
+                    doc,
+                    doc.getEspecialidad(),
+                    hostContainer,
+                    String.valueOf(idPaciente),
+                    (int) idCita
+            );
+        });
+
+
 
         HBox acciones = new HBox(10, btnCancelar, btnReagendar);
         acciones.setAlignment(Pos.CENTER_RIGHT);
 
-        // Disposición
+        // Layout
         GridPane grid = new GridPane();
         grid.setHgap(30);
         grid.setVgap(8);
@@ -260,4 +287,60 @@ public class CitasAgendadasScreen {
             }
         }
     }
+
+    private static Doctor obtenerDoctorPorCita(long idCita) {
+        Doctor doctor = null;
+        final String OWNER = "ADMIN";
+
+        String sql = "SELECT m.ID_MEDICO, m.NOMBRE, m.APELLIDOS, e.NOMBRE AS ESPECIALIDAD " +
+                "FROM " + OWNER + ".CITA c " +
+                "JOIN " + OWNER + ".MEDICOS m ON c.ID_MEDICO = m.ID_MEDICO " +
+                "LEFT JOIN " + OWNER + ".ESPECIALIDADES e ON m.ID_ESPECIALIDAD = e.ID_ESPECIALIDAD " +
+                "WHERE c.ID_CITA = ?";
+
+        try (Connection conn = OracleWalletConnector.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setLong(1, idCita);
+            ResultSet rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                doctor = new Doctor(
+                        rs.getString("ID_MEDICO"),
+                        rs.getString("NOMBRE") + " " + rs.getString("APELLIDOS"),
+                        null, // horario
+                        null, // imagen
+                        rs.getString("ESPECIALIDAD") // nombre de la especialidad
+                );
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return doctor;
+    }
+
+    private static void cancelarCita(long idCita, VBox lista, String matricula) {
+        final String sqlDel = "DELETE FROM ADMIN.CITA WHERE ID_CITA = ?";
+
+        try (Connection con = OracleWalletConnector.getConnection();
+             PreparedStatement ps = con.prepareStatement(sqlDel)) {
+
+            ps.setLong(1, idCita);
+            int rows = ps.executeUpdate();
+
+            if (rows > 0) {
+                System.out.println("Cita cancelada correctamente: " + idCita);
+                // Refrescar lista
+                lista.getChildren().clear();
+                cargarCitas(matricula, lista);
+            } else {
+                System.out.println("No se encontró la cita con ID: " + idCita);
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
+    }
+
+
 }

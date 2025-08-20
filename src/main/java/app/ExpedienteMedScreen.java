@@ -60,15 +60,6 @@ public class ExpedienteMedScreen {
     private static final LocalTime H_INI = LocalTime.of(9, 0);
     private static final LocalTime H_FIN = LocalTime.of(14, 0);
 
-    // =================== API ===================
-
-    /**
-     * Abre la pantalla completa con scroll.
-     * @param stage  Stage actual (la reemplaza en la misma ventana)
-     * @param citaInfo datos de la cita seleccionada
-     * @param agendaRef referencia a la agenda para volver
-     * @param diaRef día desde el que se llamó (para volver a esa vista)
-     */
     public void show(Stage stage,
                      DoctorAgendaScree.CitaInfo citaInfo,
                      DoctorAgendaScree agendaRef,
@@ -130,7 +121,6 @@ public class ExpedienteMedScreen {
         ImageView simedIcon = icon("Logo.png", 120, 120);
 
         String estiloBoton = "-fx-background-color: #D0E1F9; -fx-text-fill: #1F355E; -fx-font-weight: bold; -fx-background-radius: 10; -fx-padding: 10 20 10 20;";
-        String estiloEmergencia = "-fx-background-color: #B1361E; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 10; -fx-padding: 10 20 10 20;";
 
         Button btnInicio = new Button("Inicio", icon("Inicio.png", 24, 24));
         btnInicio.setContentDisplay(ContentDisplay.LEFT);
@@ -142,11 +132,7 @@ public class ExpedienteMedScreen {
             if (agenda != null) agenda.goToWeek();
         });
 
-        Button btnEmergencia = new Button("EMERGENCIA");
-        btnEmergencia.setStyle(estiloEmergencia);
-        btnEmergencia.setMinHeight(40);
-
-        HBox centerButtons = new HBox(btnInicio, btnEmergencia);
+        HBox centerButtons = new HBox(btnInicio);
         centerButtons.setSpacing(60);
         centerButtons.setAlignment(Pos.CENTER);
         centerButtons.setMaxWidth(Double.MAX_VALUE);

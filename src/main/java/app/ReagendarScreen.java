@@ -23,7 +23,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.WeekFields;
 import java.util.*;
 
-public class HorarioScreen {
+public class ReagendarScreen {
 
     // Estilos
     private static final String COLOR_FONDO_CELDA = "#E9EEF5";
@@ -54,15 +54,14 @@ public class HorarioScreen {
     private LocalDate semanaBase;
     private final Map<LocalDate, Set<LocalTime>> ocupadosPorDia = new HashMap<>();
 
-    private HorarioScreen() {}
+    private ReagendarScreen() {}
 
-    /** Punto de entrada */
     // 1) Crear cita (SIN id de cita anterior)
     public static void mostrarHorario(Doctor doctor,
                                       String especialidad,
                                       javafx.scene.layout.Pane centerContainer,
                                       String idPaciente) {
-        HorarioScreen hs = new HorarioScreen();
+        ReagendarScreen hs = new ReagendarScreen();
         hs.doctor = doctor;
         hs.especialidad = especialidad;
         hs.idPaciente = idPaciente;
@@ -72,13 +71,12 @@ public class HorarioScreen {
     }
 
     // 2) Reagendar (CON id de cita anterior)
-//    OJO: mismo orden que usas al llamar desde CitasMed
     public static void mostrarHorario(Doctor doctor,
                                       String especialidad,
                                       javafx.scene.layout.Pane centerContainer,
                                       String idPaciente,
                                       Integer citaAnteriorId) {
-        HorarioScreen hs = new HorarioScreen();
+        ReagendarScreen hs = new ReagendarScreen();
         hs.doctor = doctor;
         hs.especialidad = especialidad;
         hs.idPaciente = idPaciente;
@@ -110,8 +108,8 @@ public class HorarioScreen {
 
     private Node construirHeader() {
         VBox box = new VBox(8);
-        box.setAlignment(Pos.CENTER_LEFT);            // ← izquierda
-        box.setPadding(new Insets(0, 0, 0, 12));      // (opcional) pequeño margen izquierdo
+        box.setAlignment(Pos.CENTER_LEFT);
+        box.setPadding(new Insets(0, 0, 0, 12));
 
         Label breadcrumb = new Label("Especialidad: " + especialidad + "  >  Doctor: " + doctor.getNombre());
         breadcrumb.setFont(Font.font(15));
@@ -130,7 +128,6 @@ public class HorarioScreen {
         Button btnNext = new Button("Semana siguiente →");
         DatePicker dp = new DatePicker(semanaBase);
 
-        // estilo con tu paleta
         styleBotonSemana(btnPrev);
         styleBotonSemana(btnNext);
 
@@ -212,9 +209,12 @@ public class HorarioScreen {
         HBox.setHgrow(leftSpacer, Priority.ALWAYS);
         HBox.setHgrow(rightSpacer, Priority.ALWAYS);
 
+        Button btnAtras = new Button("Atrás");
         Button btnGuardar = new Button("Guardar");
         styleBotonPrimario(btnGuardar);
+        styleBotonSecundario(btnAtras);
 
+        btnAtras.setOnAction(e -> hostContainer.getChildren().clear());
         btnGuardar.setOnAction(e -> onGuardar());
 
         HBox leyenda = new HBox(12);
@@ -225,7 +225,7 @@ public class HorarioScreen {
                 etiquetaColor("Ocupado", "#C9CED6", "#6B7280")
         );
 
-        bottom.getChildren().addAll( leftSpacer, leyenda, rightSpacer, btnGuardar);
+        bottom.getChildren().addAll(btnAtras, leftSpacer, leyenda, rightSpacer, btnGuardar);
         return bottom;
     }
 
@@ -246,11 +246,9 @@ public class HorarioScreen {
         btn.setTooltip(tip);
 
         if (estaOcupado(fecha, hora)) {
-            // Texto tenue
             btn.setText("Ocupado");
             btn.setTextFill(Color.web("#A0A0A0"));
-            // Color de fondo del que enviaste (extraído como HEX)
-            String colorOcupado = "#6B85A3"; // este es el tono aproximado de la imagen
+            String colorOcupado = "#6B85A3";
             btn.setStyle("-fx-background-color: " + colorOcupado + "; -fx-background-radius: 8;");
             btn.setDisable(true);
 
@@ -290,18 +288,12 @@ public class HorarioScreen {
             return;
         }
 
-        // YA NO parseamos a int. Usamos el ID del doctor tal cual (VARCHAR2 en CITA)
-        String idMedico = doctor.getId();
-
-        mostrarPopupConfirmacion(
-                "Confirmar cita",
-                "¿Deseas agendar la cita?\n\nDoctor: " + doctor.getNombre() +
-                        "\nFecha: " + fechaHoraSeleccionada.toLocalDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) +
-                        "\nHora: " + fechaHoraSeleccionada.toLocalTime(), idMedico);
+        String idMedico = doctor.getId(); // VARCHAR2 en CITA
+        mostrarPopupConfirmacion(idMedico);
     }
 
 
-    private void insertarCita(String matriculaSesion, String idMedicoVarchar, Timestamp fechaHora) throws SQLException {
+    public void insertarCita(String matriculaSesion, String idMedicoVarchar, Timestamp fechaHora) throws SQLException {
         // Resolver ID_PACIENTE (NUMBER) desde la matrícula
         Long idPacienteNumber = obtenerIdPacientePorMatricula(matriculaSesion);
         if (idPacienteNumber == null) {
@@ -320,20 +312,11 @@ public class HorarioScreen {
         }
     }
 
-
-
     /* ===================== POPUPS ===================== */
-
-    // Reemplaza TODO tu método mostrarPopupConfirmacion por esto:
-    private void mostrarPopupConfirmacion(String tituloIgnorado, String mensajeIgnorado, String idMedico) {
+    private void mostrarPopupConfirmacion(String idMedico) {
         GaussianBlur blur = new GaussianBlur(14);
         root.setEffect(blur);
         Stage owner = (Stage) root.getScene().getWindow();
-
-        final String AZUL_OSCURO = "#1F355E";
-        final String AZUL_MEDIO  = "#2D4A80";
-        final String AZUL_SUAVE  = "#E9EEF5";
-        final String TEXTO_SUAVE = "#6B7A99";
 
         Locale esMX = new Locale("es", "MX");
         String fechaLarga = fechaHoraSeleccionada.toLocalDate()
@@ -342,58 +325,42 @@ public class HorarioScreen {
                 .format(DateTimeFormatter.ofPattern("hh:mm a", esMX)).toLowerCase();
         String subtitulo = "La cita sería el día " + fechaLarga + " a las " + horaAmPm + ".";
 
-        Label icono = new Label("?");
-        icono.setStyle("-fx-font-size: 56px; -fx-font-weight: bold; -fx-text-fill: " + AZUL_OSCURO + ";");
-
-        Label titulo = new Label("¿Estás seguro que deseas\n agendar una cita?");
-        titulo.setStyle("-fx-font-size: 22px; -fx-font-weight: 800; -fx-text-fill: " + AZUL_OSCURO + ";");
+        Label titulo = new Label("¿Deseas confirmar la cita?");
+        titulo.setStyle("-fx-font-size: 20px; -fx-font-weight: bold;");
         titulo.setWrapText(true);
         titulo.setAlignment(Pos.CENTER);
 
         Label sub = new Label(subtitulo);
-        sub.setStyle("-fx-font-size: 14px; -fx-text-fill: " + TEXTO_SUAVE + ";");
         sub.setWrapText(true);
         sub.setAlignment(Pos.CENTER);
 
-        // Botón cancelar (izquierda)
         Button btnCancelar = new Button("Cancelar");
-        btnCancelar.setStyle(
-                "-fx-background-color: #EEF2F7; -fx-text-fill: " + AZUL_OSCURO + ";" +
-                        "-fx-font-weight: bold; -fx-background-radius: 12; -fx-padding: 10 18;"
-        );
-        btnCancelar.setOnMouseEntered(e -> btnCancelar.setStyle(
-                "-fx-background-color: #E3E9F3; -fx-text-fill: " + AZUL_OSCURO + ";" +
-                        "-fx-font-weight: bold; -fx-background-radius: 12; -fx-padding: 10 18;"
-        ));
-        btnCancelar.setOnMouseExited(e -> btnCancelar.setStyle(
-                "-fx-background-color: #EEF2F7; -fx-text-fill: " + AZUL_OSCURO + ";" +
-                        "-fx-font-weight: bold; -fx-background-radius: 12; -fx-padding: 10 18;"
-        ));
+        btnCancelar.setOnAction(e -> { dialogRef.close(); root.setEffect(null); });
 
-        // Botón aceptar (derecha)
         Button btnAceptar = new Button("Aceptar");
-        btnAceptar.setStyle(
-                "-fx-background-color: " + AZUL_OSCURO + "; -fx-text-fill: white;" +
-                        "-fx-font-weight: bold; -fx-background-radius: 12; -fx-padding: 10 22;"
-        );
-        btnAceptar.setOnMouseEntered(e -> btnAceptar.setStyle(
-                "-fx-background-color: " + AZUL_MEDIO + "; -fx-text-fill: white;" +
-                        "-fx-font-weight: bold; -fx-background-radius: 12; -fx-padding: 10 22;"
-        ));
-        btnAceptar.setOnMouseExited(e -> btnAceptar.setStyle(
-                "-fx-background-color: " + AZUL_OSCURO + "; -fx-text-fill: white;" +
-                        "-fx-font-weight: bold; -fx-background-radius: 12; -fx-padding: 10 22;"
-        ));
-
-        btnCancelar.setOnAction(e -> {
-            dialogRef.close();
-            root.setEffect(null);
-        });
         btnAceptar.setOnAction(e -> {
             try {
-                insertarCita(idPaciente, idMedico, Timestamp.valueOf(fechaHoraSeleccionada));
+                Long idPacienteNumber = Long.valueOf(idPaciente);
+
+                // Si hay cita anterior, eliminarla
+                if (citaAnteriorId != null) {
+                    String sqlDel = "DELETE FROM CITA WHERE ID_CITA = ?";
+                    try (Connection con = OracleWalletConnector.getConnection();
+                         PreparedStatement ps = con.prepareStatement(sqlDel)) {
+                        ps.setInt(1, citaAnteriorId);
+                        ps.executeUpdate();
+                    }
+                }
+
+                // Insertar nueva cita
+                insertarCita(idPacienteNumber.toString(), idMedico, Timestamp.valueOf(fechaHoraSeleccionada));
+
                 dialogRef.close();
-                mostrarPopupExito("IGNORADO", "IGNORADO");
+                root.setEffect(null);
+
+                // Mostrar popup de éxito
+                mostrarPopupExito("Cita agendada", "Tu cita ha sido registrada exitosamente.");
+
             } catch (SQLException ex) {
                 dialogRef.close();
                 root.setEffect(null);
@@ -401,20 +368,13 @@ public class HorarioScreen {
             }
         });
 
-        // Botonera en orillas
-        BorderPane bottom = new BorderPane();
-        bottom.setLeft(btnCancelar);
-        bottom.setRight(btnAceptar);
+        HBox botones = new HBox(16, btnCancelar, btnAceptar);
+        botones.setAlignment(Pos.CENTER);
 
-        VBox card = new VBox(18, icono, titulo, sub, bottom);
-        card.setPadding(new Insets(28));
+        VBox card = new VBox(16, titulo, sub, botones);
+        card.setPadding(new Insets(24));
         card.setAlignment(Pos.CENTER);
-        card.setStyle(
-                "-fx-background-color: white; -fx-background-radius: 16;" +
-                        "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.18), 18, 0, 0, 4);" +
-                        "-fx-border-color: " + AZUL_SUAVE + "; -fx-border-radius: 16;"
-        );
-        card.setMinWidth(430);
+        card.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 10,0,0,4);");
 
         StackPane overlay = new StackPane(card);
         overlay.setPadding(new Insets(12));
@@ -425,7 +385,6 @@ public class HorarioScreen {
         dialog.initModality(Modality.WINDOW_MODAL);
         dialog.setScene(scene);
         dialog.setResizable(false);
-        dialog.setTitle("Confirmar");
 
         this.dialogRef = dialog;
         dialog.show();
