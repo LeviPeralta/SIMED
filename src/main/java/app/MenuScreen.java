@@ -68,7 +68,7 @@ public class MenuScreen {
         btnCitas.setOnAction(e -> {
             // usa la matrícula guardada en sesión
             String matricula = Sesion.getMatricula();
-            CitasAgendadasScreen.show(centerContainer, matricula);
+            CitasProximasScreen.show(centerContainer, matricula);
         });
 
         HBox centerButtons = new HBox(btnInicio, btnCitas);

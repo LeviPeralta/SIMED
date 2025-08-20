@@ -13,7 +13,6 @@ import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
@@ -265,7 +264,7 @@ public class ReagendarScreen {
         btnAtras.setOnAction(e -> {
             Stage stage = ScreenRouter.getStage();
             StackPane newRoot = new StackPane();
-            CitasAgendadasScreen.show(newRoot, this.matriculaPaciente);
+            CitasProximasScreen.show(newRoot, this.matriculaPaciente);
             if (stage != null && stage.getScene() != null) {
                 stage.getScene().setRoot(newRoot);
             }
@@ -387,7 +386,7 @@ public class ReagendarScreen {
 
             Stage stage = ScreenRouter.getStage();
             StackPane newRoot = new StackPane();
-            CitasAgendadasScreen.show(newRoot, this.matriculaPaciente);
+            CitasProximasScreen.show(newRoot, this.matriculaPaciente);
 
             if (stage != null && stage.getScene() != null) {
                 stage.getScene().setRoot(newRoot);

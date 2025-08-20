@@ -11,6 +11,7 @@ import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import org.example.OracleWalletConnector;
 
+import javax.print.Doc;
 import java.sql.*;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
@@ -100,7 +101,9 @@ public class ExpedienteMedScreen {
         cargarExpedienteSiExiste();
 
         // Eventos
-        btnAceptar.setOnAction(e -> onGuardar());
+        btnAceptar.setOnAction(e -> {
+            onGuardar();
+        });
 
         // Show/replace scene
         Scene sc = stage.getScene();
@@ -129,7 +132,9 @@ public class ExpedienteMedScreen {
         btnInicio.setMinHeight(40);
         btnInicio.setOnAction(e -> {
             // Regresa al calendario semanal del doctor
-            if (agenda != null) agenda.goToWeek();
+            if (agenda != null){
+                agenda.goToWeek();
+            }
         });
 
         HBox centerButtons = new HBox(btnInicio);
@@ -310,72 +315,67 @@ public class ExpedienteMedScreen {
 
     private void cargarExpedienteSiExiste() {
         try {
-            var opt = dao.getByCita(cita.idCita);
-            if (opt.isPresent()) {
-                ExpedienteMed e = opt.get();
-                idExpedienteExistente = e.idExpediente;
-                txtDiagnostico.setText(nvl(e.diagnostico));
-                txtTratamiento.setText(nvl(e.tratamiento));
-                txtObserv.setText(nvl(e.observaciones));
-                tfPeso.setText(e.pesoKg==null?"":String.valueOf(e.pesoKg));
-                tfFR.setText(e.frecuenciaResp==null?"":String.valueOf(e.frecuenciaResp));
-                tfTemp.setText(e.temperaturaC==null?"":String.valueOf(e.temperaturaC));
-                tfIMC.setText(e.imc==null?"":String.valueOf(e.imc));
-                txtExComp.setText(nvl(e.examenesComp));
+            // Esta línea ahora usa el DAO y el Modelo actualizados
+            ExpedienteMed e = dao.getExpedienteByCitaId(cita.idCita);
+
+            if (e != null) {
+                idExpedienteExistente = e.getIdExpediente();
+
+                // Todas estas llamadas usan los nuevos getters
+                txtDiagnostico.setText(nvl(e.getDiagnostico()));
+                txtTratamiento.setText(nvl(e.getTratamiento()));
+                txtObserv.setText(nvl(e.getObservaciones()));
+                txtExComp.setText(nvl(e.getExamenesComp()));
+
+                tfPeso.setText(e.getPesoKg() == null ? "" : String.valueOf(e.getPesoKg()));
+                tfFR.setText(e.getFrecuenciaResp() == null ? "" : String.valueOf(e.getFrecuenciaResp()));
+                tfTemp.setText(e.getTemperaturaC() == null ? "" : String.valueOf(e.getTemperaturaC()));
+                tfIMC.setText(e.getImc() == null ? "" : String.valueOf(e.getImc()));
             }
-        } catch (SQLException ex) { error("Error al cargar expediente:\n"+ex.getMessage()); }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
     }
 
     // =================== Guardar ===================
 
     private void onGuardar() {
-        LocalDate f = dpFecha.getValue();
-        String hStr = cbHora.getSelectionModel().getSelectedItem();
-        if (f==null || hStr==null) { error("Completa fecha y hora."); return; }
-        LocalDateTime fh = LocalDateTime.of(f, LocalTime.parse(hStr));
-
-        // 1) Actualiza la cita SOLO FECHA_HORA
-        final String sqlCita = "UPDATE ADMIN.CITA SET FECHA_HORA=? WHERE ID_CITA=?";
-        try (Connection con = OracleWalletConnector.getConnection();
-             PreparedStatement ps = con.prepareStatement(sqlCita)) {
-            ps.setTimestamp(1, Timestamp.valueOf(fh));
-            ps.setLong(2, cita.idCita);
-            ps.executeUpdate();
-        } catch (SQLException ex) { error("Error al actualizar la cita:\n"+ex.getMessage()); return; }
-
-        // 2) Inserta/actualiza expediente
+        // 1. Crear el objeto ExpedienteMed con los datos de la pantalla
+        // (Esta parte es como la tenías en tu imagen)
         ExpedienteMed e = new ExpedienteMed();
-        e.idExpediente  = idExpedienteExistente;
-        e.idCita        = cita.idCita;
-        e.idPaciente    = cita.idPaciente;
-        e.idMedico      = cita.idMedico;     // NO modificable
-        e.fechaConsulta = fh;
+        e.setIdCita(cita.idCita);
+        e.setIdPaciente(cita.idPaciente);
+        e.setIdMedico(cita.idMedico);
+        e.setFechaConsulta(LocalDateTime.now()); // o la fecha que corresponda
 
-        e.diagnostico   = emptyToNull(txtDiagnostico.getText());
-        e.tratamiento   = emptyToNull(txtTratamiento.getText());
-        e.observaciones = emptyToNull(txtObserv.getText());
-        e.pesoKg        = parseD(tfPeso.getText());
-        e.frecuenciaResp= parseI(tfFR.getText());
-        e.temperaturaC  = parseD(tfTemp.getText());
-        e.imc           = parseD(tfIMC.getText());
-        e.examenesComp  = emptyToNull(txtExComp.getText());
+        e.setDiagnostico(emptyToNull(txtDiagnostico.getText()));
+        e.setTratamiento(emptyToNull(txtTratamiento.getText()));
+        e.setObservaciones(emptyToNull(txtObserv.getText()));
+        e.setExamenesComp(emptyToNull(txtExComp.getText()));
 
-        try {
-            if (idExpedienteExistente == null) {
-                long newId = dao.insert(e);
-                idExpedienteExistente = newId;
-                info("Expediente guardado (ID " + newId + ") y cita actualizada.");
-            } else {
-                dao.update(e);
-                info("Expediente actualizado y cita actualizada.");
-            }
+        e.setPesoKg(parseD(tfPeso.getText()));
+        e.setFrecuenciaResp(parseI(tfFR.getText()));
+        e.setTemperaturaC(parseD(tfTemp.getText()));
+        e.setImc(parseD(tfIMC.getText()));
 
-            // 3) Volver a la VISTA POR DÍA de la agenda (con la fecha guardada)
-            if (agenda != null) {
-                agenda.goToDay(fh.toLocalDate());
-            }
+        // 2. Decidir si ACTUALIZAR o INSERTAR (GUARDAR)
+        boolean exito;
+        if (idExpedienteExistente != null) {
+            // Si el ID ya existe, es una ACTUALIZACIÓN
+            e.setIdExpediente(idExpedienteExistente); // ¡Importante! Asignar el ID para el UPDATE
+            exito = dao.update(e);
+        } else {
+            // Si el ID no existe, es un registro NUEVO
+            exito = dao.guardar(e);
+        }
 
-        } catch (SQLException ex) { error("Error al guardar expediente:\n"+ex.getMessage()); }
+        // 3. Mostrar mensaje al usuario
+        if (exito) {
+            new Alert(Alert.AlertType.INFORMATION, "Expediente guardado correctamente.").showAndWait();
+            // Aquí puedes cerrar la ventana o volver a la agenda
+        } else {
+            new Alert(Alert.AlertType.ERROR, "Error al guardar el expediente.").showAndWait();
+        }
     }
 
     // =================== Utils ===================

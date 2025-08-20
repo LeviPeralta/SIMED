@@ -2,185 +2,142 @@ package app;
 
 import org.example.OracleWalletConnector;
 
+import java.math.BigDecimal;
 import java.sql.*;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
 
+/**
+ * Data Access Object (DAO) para la entidad Expediente.
+ * VERSIÓN CORREGIDA: Utiliza el nombre de tabla 'EXPEDIENTE_MEDICO' y maneja la columna UPDATED_AT.
+ */
 public class ExpedienteMedDao {
 
-    // ============ INSERT ============
-    public long insert(ExpedienteMed e) throws SQLException {
-        final String sql = """
-            INSERT INTO ADMIN.EXPEDIENTE_MEDICO
-            (ID_CITA, ID_PACIENTE, ID_MEDICO, FECHA_CONSULTA,
-             DIAGNOSTICO, TRATAMIENTO, OBSERVACIONES,
-             PESO_KG, FRECUENCIA_RESP, TEMPERATURA_C, IMC, EXAMENES_COMP)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """;
-
-        try (Connection con = OracleWalletConnector.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql, new String[]{"ID_EXPEDIENTE"})) {
-
-            if (e.idCita == null) ps.setNull(1, Types.NUMERIC); else ps.setLong(1, e.idCita);
-            ps.setLong(2, e.idPaciente);
-            ps.setString(3, e.idMedico);
-            ps.setTimestamp(4, Timestamp.valueOf(e.fechaConsulta));
-
-            ps.setString(5,  e.diagnostico);
-            ps.setString(6,  e.tratamiento);
-            ps.setString(7,  e.observaciones);
-
-            if (e.pesoKg == null)        ps.setNull(8,  Types.NUMERIC); else ps.setDouble(8,  e.pesoKg);
-            if (e.frecuenciaResp == null)ps.setNull(9,  Types.NUMERIC); else ps.setInt(9,    e.frecuenciaResp);
-            if (e.temperaturaC == null)  ps.setNull(10, Types.NUMERIC); else ps.setDouble(10, e.temperaturaC);
-            if (e.imc == null)           ps.setNull(11, Types.NUMERIC); else ps.setDouble(11, e.imc);
-            ps.setString(12, e.examenesComp);
-
-            ps.executeUpdate();
-            try (ResultSet rs = ps.getGeneratedKeys()) {
-                if (rs.next()) return rs.getLong(1);
-            }
-        }
-        throw new SQLException("No se obtuvo ID_EXPEDIENTE generado");
-    }
-
-    // ============ UPDATE ============
-    public int update(ExpedienteMed e) throws SQLException {
-        if (e.idExpediente == null) throw new IllegalArgumentException("Se requiere idExpediente");
-        final String sql = """
-            UPDATE ADMIN.EXPEDIENTE_MEDICO
-               SET ID_CITA = ?, ID_PACIENTE = ?, ID_MEDICO = ?, FECHA_CONSULTA = ?,
-                   DIAGNOSTICO = ?, TRATAMIENTO = ?, OBSERVACIONES = ?,
-                   PESO_KG = ?, FRECUENCIA_RESP = ?, TEMPERATURA_C = ?, IMC = ?, EXAMENES_COMP = ?
-             WHERE ID_EXPEDIENTE = ?
-            """;
-        try (Connection con = OracleWalletConnector.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-
-            if (e.idCita == null) ps.setNull(1, Types.NUMERIC); else ps.setLong(1, e.idCita);
-            ps.setLong(2, e.idPaciente);
-            ps.setString(3, e.idMedico);
-            ps.setTimestamp(4, Timestamp.valueOf(e.fechaConsulta));
-
-            ps.setString(5,  e.diagnostico);
-            ps.setString(6,  e.tratamiento);
-            ps.setString(7,  e.observaciones);
-
-            if (e.pesoKg == null)        ps.setNull(8,  Types.NUMERIC); else ps.setDouble(8,  e.pesoKg);
-            if (e.frecuenciaResp == null)ps.setNull(9,  Types.NUMERIC); else ps.setInt(9,    e.frecuenciaResp);
-            if (e.temperaturaC == null)  ps.setNull(10, Types.NUMERIC); else ps.setDouble(10, e.temperaturaC);
-            if (e.imc == null)           ps.setNull(11, Types.NUMERIC); else ps.setDouble(11, e.imc);
-            ps.setString(12, e.examenesComp);
-
-            ps.setLong(13, e.idExpediente);
-            return ps.executeUpdate();
-        }
-    }
-
-    // ============ GETTERS ============
-    public Optional<ExpedienteMed> getById(long idExpediente) throws SQLException {
-        final String sql = baseSelect() + " WHERE ID_EXPEDIENTE = ?";
-        try (Connection con = OracleWalletConnector.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setLong(1, idExpediente);
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next() ? Optional.of(map(rs)) : Optional.empty();
-            }
-        }
-    }
-
-    public Optional<ExpedienteMed> getByCita(long idCita) throws SQLException {
-        final String sql = baseSelect() + " WHERE ID_CITA = ?";
+    /**
+     * Verifica si ya existe un expediente asociado a un ID de cita.
+     */
+    public boolean existsByCita(long idCita) {
+        // CORREGIDO: Nombre de la tabla
+        String sql = "SELECT COUNT(*) FROM ADMIN.EXPEDIENTE_MEDICO WHERE ID_CITA = ?";
         try (Connection con = OracleWalletConnector.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setLong(1, idCita);
             try (ResultSet rs = ps.executeQuery()) {
-                return rs.next() ? Optional.of(map(rs)) : Optional.empty();
+                if (rs.next()) {
+                    return rs.getInt(1) > 0;
+                }
             }
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
+        return false;
     }
 
-    public List<ExpedienteMed> listByPaciente(long idPaciente) throws SQLException {
-        final String sql = baseSelect() + " WHERE ID_PACIENTE = ? ORDER BY FECHA_CONSULTA DESC";
-        try (Connection con = OracleWalletConnector.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setLong(1, idPaciente);
-            try (ResultSet rs = ps.executeQuery()) {
-                List<ExpedienteMed> out = new ArrayList<>();
-                while (rs.next()) out.add(map(rs));
-                return out;
-            }
-        }
-    }
+    public ExpedienteMed getExpedienteByCitaId(long idCita) {
+        String sql = "SELECT * FROM ADMIN.EXPEDIENTE_MEDICO WHERE ID_CITA = ?";
+        try (Connection conn = OracleWalletConnector.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
 
-    public List<ExpedienteMed> listByPacienteBetween(long idPaciente, LocalDate desde, LocalDate hasta) throws SQLException {
-        final String sql = baseSelect() +
-                " WHERE ID_PACIENTE = ? AND TRUNC(CAST(FECHA_CONSULTA AS DATE)) BETWEEN ? AND ? " +
-                " ORDER BY FECHA_CONSULTA DESC";
-        try (Connection con = OracleWalletConnector.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setLong(1, idPaciente);
-            ps.setDate(2, Date.valueOf(desde));
-            ps.setDate(3, Date.valueOf(hasta));
-            try (ResultSet rs = ps.executeQuery()) {
-                List<ExpedienteMed> out = new ArrayList<>();
-                while (rs.next()) out.add(map(rs));
-                return out;
-            }
-        }
-    }
-
-    // ============ DELETE opcional ============
-    public int delete(long idExpediente) throws SQLException {
-        try (Connection con = OracleWalletConnector.getConnection();
-             PreparedStatement ps = con.prepareStatement("DELETE FROM ADMIN.EXPEDIENTE_MEDICO WHERE ID_EXPEDIENTE = ?")) {
-            ps.setLong(1, idExpediente);
-            return ps.executeUpdate();
-        }
-    }
-
-    // Helpers
-    private String baseSelect() {
-        return """
-            SELECT ID_EXPEDIENTE, ID_CITA, ID_PACIENTE, ID_MEDICO, FECHA_CONSULTA,
-                   DIAGNOSTICO, TRATAMIENTO, OBSERVACIONES,
-                   PESO_KG, FRECUENCIA_RESP, TEMPERATURA_C, IMC, EXAMENES_COMP
-              FROM ADMIN.EXPEDIENTE_MEDICO
-            """;
-    }
-
-    private ExpedienteMed map(ResultSet rs) throws SQLException {
-        ExpedienteMed e = new ExpedienteMed();
-        e.idExpediente   = rs.getLong("ID_EXPEDIENTE");
-        e.idCita         = rs.getObject("ID_CITA") == null ? null : rs.getLong("ID_CITA");
-        e.idPaciente     = rs.getLong("ID_PACIENTE");
-        e.idMedico       = rs.getString("ID_MEDICO");
-        Timestamp ts     = rs.getTimestamp("FECHA_CONSULTA");
-        e.fechaConsulta  = (ts == null) ? null : ts.toLocalDateTime();
-
-        e.diagnostico    = rs.getString("DIAGNOSTICO");
-        e.tratamiento    = rs.getString("TRATAMIENTO");
-        e.observaciones  = rs.getString("OBSERVACIONES");
-
-        e.pesoKg         = rs.getObject("PESO_KG") == null ? null : rs.getDouble("PESO_KG");
-        e.frecuenciaResp = rs.getObject("FRECUENCIA_RESP") == null ? null : rs.getInt("FRECUENCIA_RESP");
-        e.temperaturaC   = rs.getObject("TEMPERATURA_C") == null ? null : rs.getDouble("TEMPERATURA_C");
-        e.imc            = rs.getObject("IMC") == null ? null : rs.getDouble("IMC");
-        e.examenesComp   = rs.getString("EXAMENES_COMP");
-        return e;
-    }
-
-    public boolean existsByCita(long idCita) throws SQLException {
-        final String sql = "SELECT 1 FROM ADMIN.EXPEDIENTE_MEDICO WHERE ID_CITA = ? FETCH FIRST 1 ROWS ONLY";
-        try (Connection con = OracleWalletConnector.getConnection();
-             PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setLong(1, idCita);
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next();
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                // -- INICIO DE LA CORRECCIÓN A PRUEBA DE BALAS --
+
+                // Conversión segura para Long (el nuevo sospechoso)
+                BigDecimal idCitaBigDecimal = rs.getBigDecimal("ID_CITA");
+                Long idCitaConvertido = (idCitaBigDecimal == null) ? null : idCitaBigDecimal.longValue();
+
+                // Conversión segura para Integer
+                BigDecimal frBigDecimal = rs.getBigDecimal("FRECUENCIA_RESP");
+                Integer frecuenciaResp = (frBigDecimal == null) ? null : frBigDecimal.intValue();
+
+                // Conversiones seguras para Doubles
+                BigDecimal pesoBigDecimal = rs.getBigDecimal("PESO_KG");
+                Double pesoKg = (pesoBigDecimal == null) ? null : pesoBigDecimal.doubleValue();
+
+                BigDecimal tempBigDecimal = rs.getBigDecimal("TEMPERATURA_C");
+                Double temperaturaC = (tempBigDecimal == null) ? null : tempBigDecimal.doubleValue();
+
+                BigDecimal imcBigDecimal = rs.getBigDecimal("IMC");
+                Double imc = (imcBigDecimal == null) ? null : imcBigDecimal.doubleValue();
+
+                // Usamos todas las variables convertidas de forma segura
+                return new ExpedienteMed(
+                        rs.getLong("ID_EXPEDIENTE"),
+                        idCitaConvertido, // Variable corregida
+                        rs.getLong("ID_PACIENTE"),
+                        rs.getString("ID_MEDICO"),
+                        rs.getTimestamp("FECHA_CONSULTA") != null ? rs.getTimestamp("FECHA_CONSULTA").toLocalDateTime() : null,
+                        rs.getString("DIAGNOSTICO"),
+                        rs.getString("TRATAMIENTO"),
+                        rs.getString("OBSERVACIONES"),
+                        pesoKg,
+                        frecuenciaResp,
+                        temperaturaC,
+                        imc,
+                        rs.getString("EXAMENES_COMP")
+                );
             }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public boolean guardar(ExpedienteMed exp) {
+        // CORREGIDO: Nombre de la tabla. No incluimos CREATED_AT ni UPDATED_AT, la BD se encarga.
+        String sql = "INSERT INTO ADMIN.EXPEDIENTE_MEDICO (ID_CITA, ID_PACIENTE, ID_MEDICO, FECHA_CONSULTA, DIAGNOSTICO, TRATAMIENTO, OBSERVACIONES, PESO_KG, FRECUENCIA_RESP, TEMPERATURA_C, IMC, EXAMENES_COMP) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        try (Connection con = OracleWalletConnector.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setObject(1, exp.getIdCita());
+            ps.setObject(2, exp.getIdPaciente());
+            ps.setString(3, exp.getIdMedico());
+            ps.setTimestamp(4, exp.getFechaConsulta() != null ? Timestamp.valueOf(exp.getFechaConsulta()) : null);
+            ps.setString(5, exp.getDiagnostico());
+            ps.setString(6, exp.getTratamiento());
+            ps.setString(7, exp.getObservaciones());
+            ps.setObject(8, exp.getPesoKg());
+            ps.setObject(9, exp.getFrecuenciaResp());
+            ps.setObject(10, exp.getTemperaturaC());
+            ps.setObject(11, exp.getImc());
+            ps.setString(12, exp.getExamenesComp());
+
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * Actualiza un expediente existente.
+     * Modifica la columna UPDATED_AT a la fecha y hora actual del servidor de base de datos.
+     */
+    public boolean update(ExpedienteMed exp) {
+        // CORREGIDO: Nombre de tabla y se añade la actualización de UPDATED_AT
+        String sql = "UPDATE ADMIN.EXPEDIENTE_MEDICO SET " +
+                "DIAGNOSTICO = ?, TRATAMIENTO = ?, OBSERVACIONES = ?, PESO_KG = ?, " +
+                "FRECUENCIA_RESP = ?, TEMPERATURA_C = ?, IMC = ?, EXAMENES_COMP = ?, " +
+                "UPDATED_AT = CURRENT_TIMESTAMP " + // Actualiza la fecha de modificación
+                "WHERE ID_EXPEDIENTE = ?";
+        try (Connection con = OracleWalletConnector.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setString(1, exp.getDiagnostico());
+            ps.setString(2, exp.getTratamiento());
+            ps.setString(3, exp.getObservaciones());
+            ps.setObject(4, exp.getPesoKg());
+            ps.setObject(5, exp.getFrecuenciaResp());
+            ps.setObject(6, exp.getTemperaturaC());
+            ps.setObject(7, exp.getImc());
+            ps.setString(8, exp.getExamenesComp());
+            ps.setLong(9, exp.getIdExpediente()); // El ID para el WHERE
+
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
         }
     }
 }

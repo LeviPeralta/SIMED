@@ -19,7 +19,6 @@ import org.example.OracleWalletConnector;
 import java.sql.*;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
-import java.time.temporal.WeekFields;
 import java.util.*;
 
 public class HorarioScreen {
@@ -495,7 +494,7 @@ public class HorarioScreen {
         btnOk.setOnAction(e -> {
             dialogRef.close();
             root.setEffect(null);
-            CitasAgendadasScreen.show(hostContainer, idPaciente);
+            CitasProximasScreen.show(hostContainer, idPaciente);
         });
 
 

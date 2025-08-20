@@ -165,7 +165,7 @@ public class AdminPacientes {
         card.setOnMouseClicked(e -> {
             Stage stage = ScreenRouter.getStage();
             StackPane newRoot = new StackPane();
-            CitasAgendadasScreen.show(newRoot, p.getMatricula());
+            CitasProximasScreen.show(newRoot, p.getMatricula());
 
             if (stage != null && stage.getScene() != null) {
                 stage.getScene().setRoot(newRoot);

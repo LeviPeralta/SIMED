@@ -17,6 +17,7 @@ import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.WeekFields;
 import java.util.*;
+import javafx.scene.Cursor;
 
 public class DoctorAgendaScree {
 
@@ -255,21 +256,7 @@ public class DoctorAgendaScree {
 
         Button btnSalir = new Button("", icon("Close.png", 24, 24));
         btnSalir.setStyle("-fx-background-color: #1F355E;");
-        btnSalir.setOnAction(e -> {
-            app.Sesion.setDoctorId(null);
-            app.Sesion.setMatricula(null);
-            app.Sesion.setNombreUsuario(null);
-
-            Stage ventana = (Stage) btnSalir.getScene().getWindow();
-            try {
-                new org.example.Main().start(ventana);
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
-        });
-
-
-
+        btnSalir.setOnAction(e -> new MedicosEspecialidadesScreen().show(ScreenRouter.getStage()));
 
         Region spacerL = new Region();
         Region spacerR = new Region();
@@ -296,7 +283,6 @@ public class DoctorAgendaScree {
 
     private Node buildDayView(LocalDate dia) {
         ExpedienteMedDao expDao = new ExpedienteMedDao();
-        // Traemos las citas del día con nombres de paciente
         Map<LocalTime, CitaInfo> citasDelDia = cargarCitasDia(dia);
 
         StackPane wrapper = new StackPane();
@@ -335,37 +321,47 @@ public class DoctorAgendaScree {
             celda.setBorder(new Border(new BorderStroke(Color.web("#CAD3E0"),
                     BorderStrokeStyle.SOLID, new CornerRadii(6), BorderWidths.DEFAULT)));
 
-
-            citasDelDia = cargarCitasDia(dia);
             DoctorAgendaScree.CitaInfo cinfo = citasDelDia.get(t.withSecond(0).withNano(0));
             if (cinfo != null) {
-                boolean bloqueada;
-                try { bloqueada = expDao.existsByCita(cinfo.idCita); }
-                catch (Exception ex) { bloqueada = false; } // si falla, no bloquees
+                boolean tieneExpediente;
+                try {
+                    tieneExpediente = expDao.existsByCita(cinfo.idCita);
+                } catch (Exception ex) {
+                    tieneExpediente = false; // si falla, asumimos que no hay
+                    ex.printStackTrace();
+                }
 
                 celda.setStyle("-fx-background-color: #6D84A2; -fx-background-radius: 6;");
-                Label name = new Label(cinfo.nombrePaciente + (bloqueada ? "  (con expediente)" : ""));
+                Label name = new Label(cinfo.nombrePaciente + (tieneExpediente ? "  (con expediente)" : ""));
                 name.setStyle("-fx-text-fill: white; -fx-font-weight: normal;");
                 celda.getChildren().add(name);
                 StackPane.setAlignment(name, Pos.CENTER_LEFT);
                 StackPane.setMargin(name, new Insets(0, 0, 0, 14));
 
-                if (!bloqueada) {
-                    // Solo si NO hay expediente, permite abrirlo
+                // << CAMBIO PRINCIPAL: Lógica de clic separada >>
+                if (!tieneExpediente) {
+                    // Si NO hay expediente, permite CREAR uno nuevo
+                    celda.setCursor(Cursor.HAND); // Cambia el cursor para indicar que es clickeable
+                    Tooltip.install(celda, new Tooltip("Crear expediente para: " + cinfo.nombrePaciente));
                     celda.setOnMouseClicked(e -> {
                         ExpedienteMedScreen exp = new ExpedienteMedScreen();
-                        // pásale referencia a ESTA agenda y el día actual
                         exp.show((Stage) celda.getScene().getWindow(), cinfo, this, dia);
                     });
                 } else {
-                    // Con expediente: sin handler (bloqueada) + tooltip
-                    Tooltip.install(celda, new Tooltip("Cita ya tiene expediente"));
+                    // Si SÍ hay expediente, permite VISUALIZARLO (no editar)
+                    celda.setCursor(Cursor.HAND); // También es clickeable
+                    Tooltip.install(celda, new Tooltip("Ver expediente de: " + cinfo.nombrePaciente));
+                    celda.setOnMouseClicked(e -> {
+                        // Aquí llamamos a una nueva pantalla de solo lectura
+                        // Tendrás que crear esta clase: VerExpedienteScreen
+                        VerExpedienteScreen verExp = new VerExpedienteScreen();
+                        verExp.show((Stage) celda.getScene().getWindow(), cinfo.idCita);
+                    });
                 }
 
             } else {
                 celda.setStyle("-fx-background-color: #FFFFFF; -fx-background-radius: 6;");
             }
-
 
             tabla.add(celda, 1, row);
 
