@@ -145,18 +145,7 @@ public class ExpedienteMedScreen {
 
         Button btnSalir = new Button("", icon("Close.png", 24, 24));
         btnSalir.setStyle("-fx-background-color: #1F355E;");
-        btnSalir.setOnAction(e -> {
-            app.Sesion.setDoctorId(null);
-            app.Sesion.setMatricula(null);
-            app.Sesion.setNombreUsuario(null);
-
-            Stage ventana = (Stage) btnSalir.getScene().getWindow();
-            try {
-                new org.example.Main().start(ventana);
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
-        });
+        btnSalir.setOnAction(e -> new org.example.Main().start(ScreenRouter.getStage()));
 
 
         Region spacerL = new Region(), spacerR = new Region();

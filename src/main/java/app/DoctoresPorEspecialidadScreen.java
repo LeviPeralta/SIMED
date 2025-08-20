@@ -50,7 +50,6 @@ public class DoctoresPorEspecialidadScreen {
         ImageView simed = icon("Logo.png",100,100);
 
         String btn = "-fx-background-color:#D0E1F9; -fx-text-fill:#1F355E; -fx-font-weight:bold; -fx-background-radius:10; -fx-padding:8 16;";
-        String btnEm = "-fx-background-color:#B1361E; -fx-text-fill:white; -fx-font-weight:bold; -fx-background-radius:10; -fx-padding:8 16;";
 
         Button bInicio = new Button("Inicio", icon("Inicio.png",22,22));
         bInicio.setContentDisplay(ContentDisplay.LEFT);

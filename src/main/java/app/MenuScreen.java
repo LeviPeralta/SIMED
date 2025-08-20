@@ -98,19 +98,7 @@ public class MenuScreen {
 
         Button btnSalir = new Button("", createIcon("Close.png", 24, 24));
         btnSalir.setStyle("-fx-background-color: #1F355E;");
-        btnSalir.setOnAction(e -> {
-            // Cerrar la ventana actual
-            Stage currentStage = (Stage) btnSalir.getScene().getWindow();
-            currentStage.close();
-
-            // Volver a la pantalla de login (Main)
-            Stage loginStage = new Stage();
-            try {
-                new org.example.Main().start(loginStage); // ← asegúrate del paquete correcto
-            } catch (Exception ex) {
-                ex.printStackTrace();
-            }
-        });
+        btnSalir.setOnAction(e -> new org.example.Main().start(ScreenRouter.getStage()));
 
 
         Region spacerL = new Region();
