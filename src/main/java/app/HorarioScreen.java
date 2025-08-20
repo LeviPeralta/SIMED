@@ -133,11 +133,9 @@ public class HorarioScreen {
         styleBotonSemana(btnPrev);
         styleBotonSemana(btnNext);
 
-        // === INICIO DE CAMBIOS ===
         // Deshabilitar botón si la semana actual ya es la de hoy
         LocalDate lunesDeHoy = obtenerLunes(LocalDate.now());
         btnPrev.setDisable(semanaBase.isEqual(lunesDeHoy) || semanaBase.isBefore(lunesDeHoy));
-        // === FIN DE CAMBIOS ===
 
         btnPrev.setOnAction(e -> { semanaBase = semanaBase.minusWeeks(1); recargarOcupadosYRefrescar(); });
         btnNext.setOnAction(e -> { semanaBase = semanaBase.plusWeeks(1); recargarOcupadosYRefrescar(); });
@@ -148,7 +146,6 @@ public class HorarioScreen {
             @Override public LocalDate fromString(String s) { return (s == null || s.isEmpty()) ? null : LocalDate.parse(s, fmt); }
         });
 
-        // === INICIO DE CAMBIOS ===
         // Deshabilitar fechas pasadas en el DatePicker
         dp.setDayCellFactory(picker -> new DateCell() {
             @Override
@@ -160,7 +157,6 @@ public class HorarioScreen {
                 }
             }
         });
-        // === FIN DE CAMBIOS ===
 
         dp.setOnAction(e -> {
             if (dp.getValue() != null) {
@@ -188,10 +184,8 @@ public class HorarioScreen {
         List<LocalDate> dias = diasDeSemana(semanaBase);
         List<String> nombres = Arrays.asList("Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom");
 
-        // === INICIO DE CAMBIOS ===
-        // NUEVO: Obtenemos la fecha y hora actual UNA SOLA VEZ para optimizar.
+        // Obtenemos la fecha y hora actual UNA SOLA VEZ para optimizar.
         final LocalDateTime ahora = LocalDateTime.now();
-        // === FIN DE CAMBIOS ===
 
         // encabezados
         tabla.add(makeHeader("Hora"), 0, 0);
@@ -214,10 +208,8 @@ public class HorarioScreen {
 
             for (int c = 0; c < 7; c++) {
                 LocalDate date = dias.get(c);
-                // === INICIO DE CAMBIOS ===
-                // NUEVO: Pasamos 'ahora' como argumento
+                // Pasamos 'ahora' como argumento
                 Node celda = crearCelda(date, t, ahora);
-                // === FIN DE CAMBIOS ===
                 tabla.add(celda, c + 1, row);
                 GridPane.setHgrow(celda, Priority.ALWAYS);
             }
@@ -273,7 +265,6 @@ public class HorarioScreen {
         Tooltip tip = new Tooltip("Hora: " + fHora.format(hora) + "\nFecha: " + fFecha.format(fecha));
         btn.setTooltip(tip);
 
-        // === INICIO DE CAMBIOS ===
         LocalDateTime fechaHoraCelda = LocalDateTime.of(fecha, hora);
 
         // Condición 1: El horario está ocupado por otra cita.
@@ -292,7 +283,6 @@ public class HorarioScreen {
             // Para ambos casos, deshabilitamos el botón con un estilo gris.
             btn.setStyle("-fx-background-color: #D1D5DB; -fx-background-radius: 8;");
             btn.setDisable(true);
-            // === FIN DE CAMBIOS ===
         } else {
             // Lógica existente para botones disponibles
             btn.addEventFilter(MouseEvent.MOUSE_ENTERED, e -> {
@@ -559,11 +549,13 @@ public class HorarioScreen {
         LocalDate desde = dias.get(0);
         LocalDate hasta = dias.get(6);
 
+        // La consulta ahora busca citas donde el ID_MEDICO coincida O donde el ID_PACIENTE coincida.
         final String sqlCitas =
                 "SELECT FECHA_HORA FROM CITA " +
-                        "WHERE ID_MEDICO = ? " +
+                        "WHERE (ID_MEDICO = ? OR ID_PACIENTE = ?) " + // <-- La clave está en este OR
                         "AND TRUNC(CAST(FECHA_HORA AS DATE)) BETWEEN ? AND ?";
 
+        // Esta consulta no cambia, ya que los bloqueos son específicos del médico.
         final String sqlBloques =
                 "SELECT DIA_SEMANA, HORA_INICIO, HORA_FIN " +
                         "FROM HORARIO_MEDICO " +
@@ -572,10 +564,19 @@ public class HorarioScreen {
 
         try (Connection con = OracleWalletConnector.getConnection()) {
 
+            // 1) Citas reales (del médico O del paciente)
             try (PreparedStatement ps = con.prepareStatement(sqlCitas)) {
+                // Obtenemos el ID numérico del paciente para usarlo en la consulta.
+                Long idPacienteNumber = obtenerIdPacientePorMatricula(this.idPaciente);
+                if (idPacienteNumber == null) {
+                    // Si no se encuentra el paciente, lanzamos un error para no continuar.
+                    throw new SQLException("La matrícula del paciente no fue encontrada en la base de datos.");
+                }
+
                 ps.setString(1, doctor.getId());
-                ps.setDate(2, java.sql.Date.valueOf(desde));
-                ps.setDate(3, java.sql.Date.valueOf(hasta));
+                ps.setLong(2, idPacienteNumber); // <-- NUEVO PARÁMETRO
+                ps.setDate(3, java.sql.Date.valueOf(desde));   // <-- El índice ahora es 3
+                ps.setDate(4, java.sql.Date.valueOf(hasta));     // <-- El índice ahora es 4
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {
                         LocalDateTime ldt = rs.getTimestamp(1).toLocalDateTime();
@@ -584,6 +585,7 @@ public class HorarioScreen {
                 }
             }
 
+            // 2) Bloqueos/agenda base por intervalos (Sin cambios aquí)
             try (PreparedStatement ps = con.prepareStatement(sqlBloques)) {
                 ps.setString(1, doctor.getId());
                 ps.setDate(2, java.sql.Date.valueOf(desde));
@@ -628,8 +630,7 @@ public class HorarioScreen {
     }
 
     private LocalDate obtenerLunes(LocalDate anyDay) {
-        WeekFields wf = WeekFields.of(Locale.getDefault());
-        return anyDay.with(wf.dayOfWeek(), 1);
+        return anyDay.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
     }
 
     private Label makeHeader(String text) {
