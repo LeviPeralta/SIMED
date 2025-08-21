@@ -31,7 +31,7 @@ public class DoctorData {
             while (rs.next()) {
                 String id = rs.getString("ID_MEDICO");
                 String nombreCompleto = rs.getString("NOMBRE") + " " + rs.getString("APELLIDOS");
-                String horario = "Lunes - Viernes\n11:00 - 16:00";
+                String horario = "Lunes - Viernes\n09:00 - 14:00";
                 String imagen = "Doctor" + (baseOffset + index) + ".jpg";
 
                 // Agrega la especialidad al constructor
@@ -51,11 +51,11 @@ public class DoctorData {
     private static int obtenerOffsetPorEspecialidad(String especialidad) {
         return switch (especialidad) {
             case "Medicina General" -> 1;
-            case "Cardiología"      -> 13;
-            case "Neurología"       -> 19;
-            case "Ginecología"      -> 25;
-            case "Urología"         -> 31;
-            case "Traumatología"    -> 37;
+            case "Cardiología"      -> 16;
+            case "Neurología"       -> 31;
+            case "Ginecología"      -> 46;
+            case "Urología"         -> 61;
+            case "Traumatología"    -> 75;
             default -> 100; // imágenes genéricas si no se reconoce
         };
     }

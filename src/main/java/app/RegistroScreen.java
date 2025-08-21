@@ -15,9 +15,7 @@ import javafx.stage.Stage;
 import org.example.OracleWalletConnector;
 
 import java.io.File;
-import java.sql.Connection;
-import java.sql.Date;
-import java.sql.PreparedStatement;
+import java.sql.*;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -31,6 +29,8 @@ public class RegistroScreen {
     private TextField tfApellidos;
     private ComboBox<String> cbSexo;
     private TextField tfCorreo;
+    private PasswordField pfContrasena;
+    private PasswordField pfConfirmarContrasena;
     private DatePicker dpNacimiento;
     private TextField tfTelefono;
     private ComboBox<String> cbEspecialidad;   // mostrará nombre -> se mapea a ID
@@ -142,6 +142,17 @@ public class RegistroScreen {
         cbSexo.setPromptText("Selecciona sexo");
 
         tfCorreo = inputText("correo@ejemplo.com");
+
+        pfContrasena = new PasswordField();
+        pfContrasena.setPromptText("Contraseña");
+        pfContrasena.setPrefWidth(420);
+        pfContrasena.setStyle("-fx-background-radius:8; -fx-border-radius:8;");
+
+        pfConfirmarContrasena = new PasswordField();
+        pfConfirmarContrasena.setPromptText("Confirmar contraseña");
+        pfConfirmarContrasena.setPrefWidth(420);
+        pfConfirmarContrasena.setStyle("-fx-background-radius:8; -fx-border-radius:8;");
+
         dpNacimiento = new DatePicker();
         dpNacimiento.setPromptText("Fecha de nacimiento");
 
@@ -184,6 +195,8 @@ public class RegistroScreen {
         form.add(fieldWithLabel("Apellidos", tfApellidos), 0, r++);
         form.add(fieldWithLabel("Sexo", cbSexo), 0, r++);
         form.add(fieldWithLabel("Correo", tfCorreo), 0, r++);
+        form.add(fieldWithLabel("Contraseña", pfContrasena), 0, r++);
+        form.add(fieldWithLabel("Confirmar Contraseña", pfConfirmarContrasena), 0, r++);
         form.add(fieldWithLabel("Fecha de nacimiento", dpNacimiento), 0, r++);
         form.add(fieldWithLabel("Teléfono", tfTelefono), 0, r++);
         form.add(fieldWithLabel("Especialidad", cbEspecialidad), 0, r++);
@@ -243,69 +256,40 @@ public class RegistroScreen {
     }
 
     // ===== Persistencia =====
-    private void guardarMedico(){
-        if (isBlank(tfNombre) || isBlank(tfApellidos) || cbSexo.getValue()==null ||
-                isBlank(tfCorreo) || dpNacimiento.getValue()==null ||
-                isBlank(tfTelefono) || cbEspecialidad.getValue()==null || cbConsultorio.getValue()==null) {
-            alert(Alert.AlertType.WARNING, "Por favor completa todos los campos.");
+    private void guardarMedico() {
+        // Validaciones básicas
+        if (isBlank(tfNombre) || isBlank(tfApellidos) || isBlank(tfCorreo) || isBlank(pfContrasena)) {
+            alert(Alert.AlertType.WARNING, "Por favor llena todos los campos obligatorios.");
+            return;
+        }
+        if (!pfContrasena.getText().equals(pfConfirmarContrasena.getText())) {
+            alert(Alert.AlertType.WARNING, "Las contraseñas no coinciden.");
             return;
         }
 
-        LocalDate fn = dpNacimiento.getValue();
-
-        LocalDate hoy = LocalDate.now();
-        LocalDate hace18 = hoy.minusYears(18);
-        if (fn.isAfter(hace18)) {
-            alert(Alert.AlertType.WARNING, "El médico debe tener al menos 18 años.");
-            return;
-        }
-
-        String nombre = tfNombre.getText().trim();
-        String apellidos = tfApellidos.getText().trim();
-        String sexo = cbSexo.getValue();
         String correo = tfCorreo.getText().trim();
+        String password = pfContrasena.getText().trim();
+        String nombres = tfNombre.getText().trim();
+        String apellidos = tfApellidos.getText().trim();
         String telefono = tfTelefono.getText().trim();
+        String genero = cbSexo.getValue();
+        LocalDate fechaNacimiento = dpNacimiento.getValue();
 
-        // 🔹 Generar el ID a partir del correo (parte antes de @utez.edu.mx)
-        String idMedico;
-        if (correo.endsWith("@utez.edu.mx")) {
-            idMedico = correo.substring(0, correo.indexOf("@"));
-        } else {
-            alert(Alert.AlertType.WARNING, "El correo debe terminar en @utez.edu.mx");
-            return;
-        }
-
+        // Obtener IDs
         Integer idEspecialidad = ESPECIALIDADES.get(cbEspecialidad.getValue());
         Integer idConsultorio = CONSULTORIOS.get(cbConsultorio.getValue());
 
-        // 🔹 Ahora incluimos ID_MEDICO en el insert
-        String sql = "INSERT INTO ADMIN.MEDICOS " +
-                "(ID_MEDICO, NOMBRE, APELLIDOS, SEXO, CORREO, FECHA_NACIMIENTO, TELEFONO, ID_ESPECIALIDAD, ID_CONSULTORIO) " +
-                "VALUES (?,?,?,?,?,?,?,?,?)";
+        if (idEspecialidad == null || idConsultorio == null) {
+            alert(Alert.AlertType.WARNING, "Selecciona especialidad y consultorio.");
+            return;
+        }
 
-        try (Connection cn = OracleWalletConnector.getConnection();
-             PreparedStatement ps = cn.prepareStatement(sql)) {
+        boolean exito = crearMedicoYUsuarioTransaccional(
+                correo, password, nombres, apellidos, genero, fechaNacimiento, telefono, idEspecialidad, idConsultorio);
 
-            ps.setString(1, idMedico);                 // ID_MEDICO generado
-            ps.setString(2, nombre);
-            ps.setString(3, apellidos);
-            ps.setString(4, sexo);
-            ps.setString(5, correo);
-            ps.setDate(6, Date.valueOf(fn));
-            ps.setString(7, telefono);
-            ps.setInt(8, idEspecialidad);
-            ps.setInt(9, idConsultorio);
-
-            int rows = ps.executeUpdate();
-            if (rows > 0){
-                alert(Alert.AlertType.INFORMATION, "Médico registrado correctamente.");
-                limpiarCampos();
-            } else {
-                alert(Alert.AlertType.ERROR, "No se pudo registrar el médico.");
-            }
-        } catch (Exception ex){
-            ex.printStackTrace();
-            alert(Alert.AlertType.ERROR, "Error al guardar en Oracle: " + ex.getMessage());
+        if (exito) {
+            alert(Alert.AlertType.INFORMATION, "Médico y usuario guardados correctamente.");
+            limpiarCampos();
         }
     }
 
@@ -315,6 +299,8 @@ public class RegistroScreen {
         tfApellidos.clear();
         cbSexo.getSelectionModel().clearSelection();
         tfCorreo.clear();
+        pfContrasena.clear();
+        pfConfirmarContrasena.clear();
         dpNacimiento.setValue(null);
         tfTelefono.clear();
         cbEspecialidad.getSelectionModel().clearSelection();
@@ -357,5 +343,80 @@ public class RegistroScreen {
         a.initOwner(ScreenRouter.getStage());
         a.setHeaderText(null);
         a.showAndWait();
+    }
+
+    private boolean crearMedicoYUsuarioTransaccional(
+            String correo, String password,
+            String nombres, String apellidos, String genero, LocalDate fechaNacimiento, String telefono,
+            Integer idEspecialidad,
+            Integer idConsultorio
+    ) {
+        String idMedico = correo.replace("@utez.edu.mx", "");
+
+        String insertMedico =
+                "INSERT INTO ADMIN.MEDICOS " +
+                        "(ID_MEDICO, NOMBRE, APELLIDOS, SEXO, CORREO,  FECHA_NACIMIENTO, TELEFONO, ID_ESPECIALIDAD, ID_CONSULTORIO) " +
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+        String insertUsuario =
+                "INSERT INTO ADMIN.USUARIO " +
+                        "(ID_USUARIO, CORREO, CONTRASENA, ROL, ID_REFERENCIA, TIPO_USUARIO) " +
+                        "VALUES (ADMIN.USUARIO_SEQ.NEXTVAL, ?, ?, ?, ADMIN.REFERENCIA_SEQ.NEXTVAL, ?)";
+
+        Connection conn = null;
+
+        try {
+            conn = OracleWalletConnector.getConnection();
+            conn.setAutoCommit(false);
+
+            try (PreparedStatement psM = conn.prepareStatement(insertMedico)) {
+                psM.setString(1, idMedico);
+                psM.setString(2, nombres);
+                psM.setString(3, apellidos);
+                psM.setString(4, genero);
+                psM.setString(5, correo);
+
+                if (fechaNacimiento != null) {
+                    psM.setDate(6, java.sql.Date.valueOf(fechaNacimiento));
+                } else {
+                    psM.setNull(6, Types.DATE);
+                }
+
+                psM.setString(7, telefono);
+                psM.setInt(8, idEspecialidad);
+                psM.setInt(9, idConsultorio);
+                psM.executeUpdate();
+            }
+
+            try (PreparedStatement psU = conn.prepareStatement(insertUsuario)) {
+                psU.setString(1, correo);
+                psU.setString(2, password);
+                psU.setString(3, "medico");
+                psU.setString(4, "medico");
+                psU.executeUpdate();
+            }
+
+            conn.commit();
+            return true;
+
+        } catch (SQLException e) {
+            if (conn != null) try { conn.rollback(); } catch (SQLException ignore) {}
+            if (e.getErrorCode() == 1) {
+                showAlert("Duplicado", "El correo o el ID de médico ya están registrados.");
+            } else {
+                showAlert("Error de BD", e.getMessage());
+            }
+            return false;
+        } finally {
+            if (conn != null) try { conn.setAutoCommit(true); conn.close(); } catch (SQLException ignore) {}
+        }
+    }
+
+    private void showAlert(String title, String message) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
     }
 }

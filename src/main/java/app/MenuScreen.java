@@ -343,7 +343,6 @@ public class MenuScreen {
         Label linkInicio = new Label("Inicio");
         linkInicio.setTextFill(Color.web("#1F355E"));
         linkInicio.setStyle("-fx-underline: true;");
-        linkInicio.setOnMouseClicked(e -> volverAMenu());
 
         // Separador
         Label sep1 = new Label("•");
@@ -353,7 +352,6 @@ public class MenuScreen {
         Label linkDoctores = new Label("Doctores");
         linkDoctores.setTextFill(Color.web("#1F355E"));
         linkDoctores.setStyle("-fx-underline: true;");
-        linkDoctores.setOnMouseClicked(e -> mostrarDoctores("Medicina General")); // Puedes modificar si quieres otra lógica
 
         // Separador
         Label sep2 = new Label("•");

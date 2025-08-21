@@ -207,17 +207,11 @@ public class DoctoresPorEspecialidadScreen {
         lblEsp.setTextFill(Color.web("#566B8E"));
         lblEsp.setWrapText(true);
 
-        Button btnHorario = new Button("Cambiar horario");
-        btnHorario.setStyle("-fx-background-color:#1F355E; -fx-text-fill:white; -fx-background-radius:8; -fx-padding:6 10;");
-        btnHorario.setOnAction(e ->
-                HorarioScreen.mostrarHorario(d, esp, centerContainer, Sesion.getMatricula())
-        );
-
         Button btnCitas = new Button("Ver Citas");
         btnCitas.setStyle("-fx-background-color:#D0E1F9; -fx-text-fill:#1F355E; -fx-background-radius:8; -fx-padding:6 10;");
         btnCitas.setOnAction(e -> new CitasMed().show(ScreenRouter.getStage(), d));
 
-        HBox actions = new HBox(10, btnHorario, btnCitas);
+        HBox actions = new HBox(10, btnCitas);
         actions.setAlignment(Pos.CENTER_LEFT);
 
         VBox data = new VBox(6, lblNombre, lblEsp, actions);

@@ -1,6 +1,5 @@
 package app;
 
-import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -19,19 +18,21 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
-// RENOMBRADO DE CitasAgendadasScreen a CitasProximasScreen
 public class CitasProximasScreen {
 
     private static final String AZUL_OSCURO = "#1F355E";
     private static final String AZUL_SUAVE  = "#E9EEF5";
     private static final String BORDE       = "#0F274A";
 
-    public static void show(Pane hostContainer, String matriculaSesion) {
-        VBox root = new VBox(18);
-        root.setPadding(new Insets(16, 24, 24, 24));
-        root.setStyle("-fx-background-color: white;");
-        root.setAlignment(Pos.TOP_LEFT);
+    public static void show(Pane hostContainer, String matriculaPaciente) {
+        BorderPane mainLayout = new BorderPane();
+        mainLayout.setStyle("-fx-background-color: white;");
 
+        VBox contentBox = new VBox(18);
+        contentBox.setPadding(new Insets(16, 24, 24, 24));
+        contentBox.setAlignment(Pos.TOP_LEFT);
+
+        // --- Breadcrumbs (Ruta de navegación) ---
         HBox bc = new HBox(6);
         Label t1 = new Label("Inicio");
         Label dot = new Label("•");
@@ -42,9 +43,18 @@ public class CitasProximasScreen {
         t2.setStyle("-fx-text-fill: " + AZUL_OSCURO + ";");
 
         t1.setCursor(Cursor.HAND);
-        t1.setOnMouseClicked(e -> new MenuScreen().show((Stage) hostContainer.getScene().getWindow()));
+        t1.setOnMouseClicked(e -> {
+            // Esta navegación puede variar dependiendo del rol, se mantiene por consistencia
+            String tipoUsuario = Sesion.getTipoUsuario();
+            if ("paciente".equalsIgnoreCase(tipoUsuario)) {
+                new MenuScreen().show((Stage) hostContainer.getScene().getWindow());
+            } else {
+                new AdminRecepcionistaScreen().show();
+            }
+        });
         bc.getChildren().addAll(t1, dot, t2);
 
+        // --- Cabecera ---
         Label titulo = new Label("Próximas Citas");
         titulo.setFont(Font.font("System", FontWeight.BOLD, 18));
         titulo.setStyle("-fx-text-fill: " + AZUL_OSCURO + ";");
@@ -52,28 +62,54 @@ public class CitasProximasScreen {
         Button btnAnteriores = new Button("Citas anteriores");
         btnAnteriores.setCursor(Cursor.HAND);
         btnAnteriores.setStyle("-fx-background-color: " + AZUL_OSCURO + "; -fx-text-fill: white; -fx-background-radius: 8; -fx-padding: 8 14; -fx-font-weight: bold;");
-        // << CAMBIO: Funcionalidad del botón
-        btnAnteriores.setOnAction(e -> CitasAnterioresScreen.show(hostContainer, matriculaSesion));
+        btnAnteriores.setOnAction(e -> CitasAnterioresScreen.show(hostContainer, matriculaPaciente));
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
         HBox cabecera = new HBox(titulo, spacer, btnAnteriores);
         cabecera.setAlignment(Pos.CENTER);
 
+        // --- Contenedor para la lista de citas ---
         VBox lista = new VBox(16);
         lista.setFillWidth(true);
 
-        root.getChildren().addAll(bc, cabecera, lista);
+        contentBox.getChildren().addAll(bc, cabecera, lista);
 
-        cargarCitasProximas(matriculaSesion, lista);
+        cargarCitasProximas(matriculaPaciente, lista);
 
-        ScrollPane scroller = new ScrollPane(root);
+        // --- ScrollPane para el contenido central ---
+        ScrollPane scroller = new ScrollPane(contentBox);
         scroller.setFitToWidth(true);
         scroller.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-        hostContainer.getChildren().setAll(scroller);
+        scroller.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
+
+        mainLayout.setCenter(scroller);
+
+        // --- Barra inferior con el botón "Atrás" ---
+        HBox bottomBar = new HBox();
+        bottomBar.setPadding(new Insets(10, 24, 10, 24));
+        bottomBar.setAlignment(Pos.CENTER_RIGHT);
+        bottomBar.setStyle("-fx-background-color: white; -fx-border-color: #E0E0E0; -fx-border-width: 1 0 0 0;");
+
+        Button btnAtras = new Button("Atrás");
+        btnAtras.setCursor(Cursor.HAND);
+        btnAtras.setStyle("-fx-background-color: " + AZUL_OSCURO + "; -fx-text-fill: white; -fx-background-radius: 8; -fx-padding: 8 14; -fx-font-weight: bold;");
+
+        btnAtras.setOnAction(e -> {
+            String tipoUsuario = Sesion.getTipoUsuario();
+            if ("paciente".equals(tipoUsuario)) {
+                new AdminPacientes().show();
+            } else {
+                new MenuScreen().show((Stage) hostContainer.getScene().getWindow());
+            }
+        });
+
+        bottomBar.getChildren().add(btnAtras);
+        mainLayout.setBottom(bottomBar);
+
+        hostContainer.getChildren().setAll(mainLayout);
     }
 
-    // << CAMBIO: El método ahora filtra solo citas próximas y sin expediente
     private static void cargarCitasProximas(String matricula, VBox lista) {
         String sql = "SELECT c.ID_CITA, c.FECHA_HORA, m.NOMBRE || ' ' || m.APELLIDOS AS MEDICO, co.NOMBRE AS CONSULTORIO " +
                 "FROM ADMIN.CITA c " +
@@ -98,7 +134,6 @@ public class CitasProximasScreen {
                 Timestamp ts = rs.getTimestamp("FECHA_HORA");
                 String medico = rs.getString("MEDICO");
                 String consultorio = rs.getString("CONSULTORIO");
-                // La tarjeta original con botones de cancelar/reagendar se mantiene
                 lista.getChildren().add(tarjetaCita(idCita, matricula, ts, medico, consultorio));
             }
             if (!hayCitas) {
@@ -110,10 +145,6 @@ public class CitasProximasScreen {
             lista.getChildren().add(new Label("Error al cargar las próximas citas."));
         }
     }
-
-    // El resto de los métodos (tarjetaCita, capitalize, cancelarCita, etc.)
-    // se mantienen exactamente igual que en tu archivo original.
-    // Solo copia y pega el método cargarCitasProximas de arriba.
 
     private static Node tarjetaCita(int idCita, String matricula, Timestamp ts, String medico, String consultorio) {
         Locale esMX = new Locale("es", "MX");
@@ -134,6 +165,7 @@ public class CitasProximasScreen {
         lh.setFont(Font.font("System", FontWeight.BOLD, 12));
 
         Button btnCancelar = new Button("Cancelar cita");
+        btnCancelar.setCursor(Cursor.HAND);
         btnCancelar.setStyle("-fx-background-color: " + AZUL_SUAVE + "; -fx-text-fill: " + AZUL_OSCURO + "; -fx-background-radius: 8; -fx-padding: 8 12;");
         btnCancelar.setOnAction(e -> {
             VBox lista = (VBox)((Node)e.getSource()).getParent().getParent().getParent().getParent();
@@ -141,16 +173,17 @@ public class CitasProximasScreen {
         });
 
         Button btnReagendar = new Button("Reagendar cita");
+        btnReagendar.setCursor(Cursor.HAND);
         btnReagendar.setStyle("-fx-background-color: " + AZUL_SUAVE + "; -fx-text-fill: " + AZUL_OSCURO + "; -fx-background-radius: 8; -fx-padding: 8 12;");
-
         btnReagendar.setOnAction(e -> {
+            Stage stage = (Stage) btnReagendar.getScene().getWindow();
             Doctor doc = obtenerDoctorPorCita(idCita);
             if (doc == null) {
                 System.err.println("No se encontró el doctor para la cita " + idCita);
                 return;
             }
             ReagendarScreen.show(
-                    (Stage)btnReagendar.getScene().getWindow(),
+                    stage,
                     doc,
                     doc.getEspecialidad(),
                     matricula,
@@ -158,9 +191,9 @@ public class CitasProximasScreen {
             );
         });
 
-        HBox acciones = new HBox(10, btnCancelar, btnReagendar);
+        HBox acciones = new HBox(10);
         acciones.setAlignment(Pos.CENTER_RIGHT);
-
+        acciones.getChildren().addAll(btnCancelar, btnReagendar);
         VBox detalles = new VBox(5, ld, lh, lm, lc);
 
         BorderPane card = new BorderPane();
