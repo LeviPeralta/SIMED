@@ -77,14 +77,10 @@ public class ReagendarScreen {
         content.setPadding(new Insets(12, 32, 12, 32));
         VBox.setVgrow(content, Priority.ALWAYS);
 
-        // --- CAMBIO: BREADCRUMBS ELIMINADOS ---
-        // El HBox 'breadcrumb' fue completamente removido de aquí.
-
         Node barraSemana = construirBarraSemana();
         Node tablaHorarios = construirTablaSemana();
         VBox.setVgrow(tablaHorarios, Priority.ALWAYS);
 
-        // Se añade el contenido sin los breadcrumbs
         content.getChildren().addAll(barraSemana, tablaHorarios);
 
         screenRoot.setCenter(content);
@@ -164,9 +160,6 @@ public class ReagendarScreen {
         bInicio.setContentDisplay(ContentDisplay.LEFT);
         bInicio.setGraphicTextGap(8);
         bInicio.setStyle("-fx-background-color:#D0E1F9; -fx-text-fill:#1F355E; -fx-font-weight:bold; -fx-background-radius:10; -fx-padding:8 16;");
-
-        // --- CAMBIO: ACCIÓN DEL BOTÓN 'INICIO' ---
-        // Ahora navega a la pantalla principal del menú de especialidades.
         bInicio.setOnAction(e -> new MenuScreen().show(ScreenRouter.getStage()));
 
         Region spL = new Region(); HBox.setHgrow(spL, Priority.ALWAYS);
@@ -259,16 +252,13 @@ public class ReagendarScreen {
         Button btnAtras = new Button("Atrás");
         styleBotonSecundario(btnAtras);
 
-        // --- CAMBIO: ACCIÓN DEL BOTÓN 'ATRÁS' ---
-        // Ahora regresa a la pantalla de Citas Agendadas.
+        // --- INICIO DE LA CORRECCIÓN ---
         btnAtras.setOnAction(e -> {
-            Stage stage = ScreenRouter.getStage();
-            StackPane newRoot = new StackPane();
-            CitasProximasScreen.show(newRoot, this.matriculaPaciente);
-            if (stage != null && stage.getScene() != null) {
-                stage.getScene().setRoot(newRoot);
-            }
+            MenuScreen menu = new MenuScreen();
+            menu.show(ScreenRouter.getStage());
+            menu.showCitasProximas();
         });
+        // --- FIN DE LA CORRECCIÓN ---
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -380,18 +370,17 @@ public class ReagendarScreen {
         screenRoot.setEffect(new GaussianBlur(14));
         Stage owner = ScreenRouter.getStage();
         Button btnOk = new Button("Aceptar");
+
+        // --- INICIO DE LA CORRECCIÓN ---
         btnOk.setOnAction(e -> {
             dialogRef.close();
             screenRoot.setEffect(null);
-
-            Stage stage = ScreenRouter.getStage();
-            StackPane newRoot = new StackPane();
-            CitasProximasScreen.show(newRoot, this.matriculaPaciente);
-
-            if (stage != null && stage.getScene() != null) {
-                stage.getScene().setRoot(newRoot);
-            }
+            MenuScreen menu = new MenuScreen();
+            menu.show(ScreenRouter.getStage());
+            menu.showCitasProximas();
         });
+        // --- FIN DE LA CORRECCIÓN ---
+
         final String AZUL_OSCURO = "#1F355E";
         final String AZUL_SUAVE = "#E9EEF5";
         Locale esMX = new Locale("es", "MX");

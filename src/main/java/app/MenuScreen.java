@@ -528,4 +528,16 @@ public class MenuScreen {
         b.setOnAction(e -> run.run());
         return b;
     }
+
+    public void showCitasProximas() {
+        if (centerContainer != null) {
+            String matricula = Sesion.getMatricula();
+            if (matricula != null) {
+                CitasProximasScreen.show(centerContainer, matricula);
+            } else {
+                // Si no hay matrícula en la sesión, regresa al menú principal
+                volverAMenu();
+            }
+        }
+    }
 }
