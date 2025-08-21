@@ -41,7 +41,6 @@ public class ExpedienteMedScreen {
     private static final String ESTILO_BOTON_SECUNDARIO = "-fx-background-color: #E9EEF5; -fx-text-fill: " + COLOR_AZUL_OSCURO + "; -fx-background-radius: 8; -fx-padding: 8 18; -fx-font-weight: bold;";
 
     // --- Componentes UI ---
-    // (El resto de los componentes se mantienen igual)
     private final Label lblNombreCompleto = new Label("-");
     private final Label lblFechaNacimiento = new Label("-");
     private final Label lblTelefono = new Label("-");
@@ -93,15 +92,9 @@ public class ExpedienteMedScreen {
         cargarDatosCita();
         cargarExpedienteSiExiste();
 
-        Scene sc = stage.getScene();
-        if (sc == null) {
-            sc = new Scene(root, 1200, 800);
-            stage.setScene(sc);
-        } else {
-            sc.setRoot(root);
-        }
-        stage.setMaximized(true);
-        stage.show();
+        // --- INICIO DE LA CORRECCIÓN ---
+        ScreenRouter.setView(root);
+        // --- FIN DE LA CORRECCIÓN ---
     }
 
     private HBox buildTopBar() {
@@ -119,11 +112,14 @@ public class ExpedienteMedScreen {
         btnInicio.setGraphicTextGap(8);
         btnInicio.setStyle(estiloBotonNav);
         btnInicio.setMinHeight(40);
+        // --- INICIO DE LA CORRECCIÓN ---
         btnInicio.setOnAction(e -> {
             if (agenda != null) {
                 agenda.goToWeek();
+                ScreenRouter.setView(agenda.getRoot());
             }
         });
+        // --- FIN DE LA CORRECCIÓN ---
 
         HBox centerButtons = new HBox(btnInicio);
         centerButtons.setAlignment(Pos.CENTER);
@@ -136,8 +132,9 @@ public class ExpedienteMedScreen {
         Button btnSalir = new Button("", icon("Close.png", 24, 24));
         btnSalir.setStyle("-fx-background-color: #1F355E;");
 
-        // << CAMBIO: Lógica de "Cerrar Sesión" más robusta >>
+        // --- INICIO DE LA CORRECCIÓN ---
         btnSalir.setOnAction(e -> new org.example.Main().start(ScreenRouter.getStage()));
+        // --- FIN DE LA CORRECCIÓN ---
 
         Region spacerL = new Region(); HBox.setHgrow(spacerL, Priority.ALWAYS);
         Region spacerR = new Region(); HBox.setHgrow(spacerR, Priority.ALWAYS);
@@ -162,14 +159,16 @@ public class ExpedienteMedScreen {
     }
 
     private HBox botonesAccion() {
-        // << CAMBIO: El botón "Modificar" ahora es "Atrás" y regresa a la vista del día >>
         Button btnAtras = new Button("Atrás");
         btnAtras.setStyle(ESTILO_BOTON_SECUNDARIO);
+        // --- INICIO DE LA CORRECCIÓN ---
         btnAtras.setOnAction(e -> {
             if (agenda != null) {
                 agenda.goToDay(cita.fechaHora.toLocalDate());
+                ScreenRouter.setView(agenda.getRoot());
             }
         });
+        // --- FIN DE LA CORRECCIÓN ---
 
         Button btnAceptar = new Button("Aceptar");
         btnAceptar.setStyle(ESTILO_BOTON_PRINCIPAL);
@@ -314,7 +313,12 @@ public class ExpedienteMedScreen {
 
         if (exito) {
             new Alert(Alert.AlertType.INFORMATION, "Expediente guardado correctamente.").showAndWait();
-            agenda.goToDay(cita.fechaHora.toLocalDate());
+            // --- INICIO DE LA CORRECCIÓN ---
+            if (agenda != null) {
+                agenda.goToDay(cita.fechaHora.toLocalDate());
+                ScreenRouter.setView(agenda.getRoot());
+            }
+            // --- FIN DE LA CORRECCIÓN ---
         } else {
             new Alert(Alert.AlertType.ERROR, "Error al guardar el expediente.").showAndWait();
         }

@@ -3,6 +3,7 @@ package app;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
@@ -40,6 +41,17 @@ public class DoctorAgendaScree {
     private VBox centerContent;
     private Stage stage;
 
+    // --- INICIO DE LA CORRECCIÓN ---
+    /**
+     * Permite que otras clases obtengan la vista principal de esta pantalla.
+     * @return El panel raíz de la agenda.
+     */
+    public Parent getRoot() {
+        return root;
+    }
+    // --- FIN DE LA CORRECCIÓN ---
+
+
     public void show(Stage stage, String idMedico, String nombreMedico) {
         this.stage = stage;
         this.idMedico = idMedico != null ? idMedico.trim() : null;
@@ -52,20 +64,16 @@ public class DoctorAgendaScree {
         root.setCenter(centerContent);
 
         // Inicializa semanaBase al lunes de la semana actual
-        this.semanaBase = startOfWeek(LocalDate.now());  // <<<<<<
+        this.semanaBase = startOfWeek(LocalDate.now());
 
         root.setTop(buildTopBar(stage));
 
         // pinta semana
         renderWeek();
 
-        Scene sc = stage.getScene();
-        if (sc == null) {
-            sc = new Scene(root, 1200, 800);
-            stage.setScene(sc);
-        } else {
-            sc.setRoot(root);
-        }
+        // --- INICIO DE LA CORRECCIÓN ---
+        ScreenRouter.setView(root);
+        // --- FIN DE LA CORRECCIÓN ---
 
         stage.setMaximized(true);
         javafx.application.Platform.runLater(() -> stage.setMaximized(true));
