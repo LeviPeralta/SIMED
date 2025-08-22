@@ -118,7 +118,7 @@ public class RegistroScreen {
         HBox bc = new HBox(6);
         bc.setAlignment(Pos.CENTER_LEFT);
         bc.getChildren().addAll(link("Inicio", () -> new MedicosEspecialidadesScreen().show(ScreenRouter.getStage())),
-                dot(), new Label("Pacientes"), dot(), labelAzul("Registro"));
+                dot(), new Label("Medicos"), dot(), labelAzul("Registro"));
         header.getChildren().addAll(bc, titulo("Registro"));
 
         // ===== Body: Card con formulario + foto =====

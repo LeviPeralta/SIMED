@@ -805,7 +805,7 @@ public class Main extends Application {
         Scene scene = new Scene(root, 800, 650);
         window.setScene(scene);
         window.setMinWidth(800);
-        window.setMinHeight(650);
+        window.setMinHeight(750);
         window.centerOnScreen();
         window.setResizable(true);
 
